@@ -6,3 +6,7 @@ GitHubについては、各メンバーが自分用のBranchを作成し、各�
 作業が完了したらTAに報告し、TAによる確認で問題がなければ、その変更内容をmain Branchにmergeする形とします。
 # 貢献
 プルリクエストを歓迎します。大きな変更の場合は、まず Issue を開いて変更内容を議論してください。
+# 使用方法
+原則として、PC上で Fork を使用してGitHubの操作を行ってください。
+Forkの導入方法および基本的な使用方法については、以下の手順書を参照してください。
+https://docs.google.com/document/d/1hMs6j5X76XY8A1aEH8YlAHbH-G6z8egjqjzHok1xShA/edit?tab=t.0
