@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: f2ec2499c3ce1864aa6b7f59f2755a36
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 225040
+  packageName: Train station - Western
+  packageVersion: 1.0
+  assetPath: Assets/Train station - Western/Models/Prefabs/cart_body.prefab
+  uploadId: 507569

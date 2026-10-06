@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: f3cae4d9893848847bfd5b712651867d
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 225040
+  packageName: Train station - Western
+  packageVersion: 1.0
+  assetPath: Assets/Train station - Western/Models/Prefabs/Train_ticket.prefab
+  uploadId: 507569

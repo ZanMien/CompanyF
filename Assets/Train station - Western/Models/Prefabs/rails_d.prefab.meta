@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: dd0ba1cf48a14d24d9f77557fd1b431a
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 225040
+  packageName: Train station - Western
+  packageVersion: 1.0
+  assetPath: Assets/Train station - Western/Models/Prefabs/rails_d.prefab
+  uploadId: 507569

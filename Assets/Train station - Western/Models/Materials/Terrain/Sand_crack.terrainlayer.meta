@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 1f4d8bdac5e7eea4ca5d7af0b5b78d8e
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 225040
+  packageName: Train station - Western
+  packageVersion: 1.0
+  assetPath: Assets/Train station - Western/Models/Materials/Terrain/Sand_crack.terrainlayer
+  uploadId: 507569

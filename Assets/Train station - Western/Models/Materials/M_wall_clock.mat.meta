@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 64f1e0243d3217d4c80a17db35a45888
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 225040
+  packageName: Train station - Western
+  packageVersion: 1.0
+  assetPath: Assets/Train station - Western/Models/Materials/M_wall_clock.mat
+  uploadId: 507569

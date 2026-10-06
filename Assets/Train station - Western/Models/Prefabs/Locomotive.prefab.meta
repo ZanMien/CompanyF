@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 68e9e20deffc6014f8dc9f12505f0dd3
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 225040
+  packageName: Train station - Western
+  packageVersion: 1.0
+  assetPath: Assets/Train station - Western/Models/Prefabs/Locomotive.prefab
+  uploadId: 507569

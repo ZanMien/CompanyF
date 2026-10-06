@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: e78b365a6c9772c48ab23e2a60ec7869
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 225040
+  packageName: Train station - Western
+  packageVersion: 1.0
+  assetPath: Assets/Train station - Western/Models/Prefabs/Train_ticket_stapled.prefab
+  uploadId: 507569

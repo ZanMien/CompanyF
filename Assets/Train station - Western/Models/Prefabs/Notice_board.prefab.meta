@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: b430cbeed927c5d45942683099238ef2
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 225040
+  packageName: Train station - Western
+  packageVersion: 1.0
+  assetPath: Assets/Train station - Western/Models/Prefabs/Notice_board.prefab
+  uploadId: 507569

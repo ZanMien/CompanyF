@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 71cb5a2ad022f07438a750d05017447d
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 4890085278179872738
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 225040
+  packageName: Train station - Western
+  packageVersion: 1.0
+  assetPath: Assets/Train station - Western/Scenes/Train station - WesternSettings.lighting
+  uploadId: 507569
