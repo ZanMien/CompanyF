@@ -1,0 +1,113 @@
+using System.Collections.Generic;
+using UnityEditor;
+using UnityEngine;
+
+namespace CompanyF.Gameplay.EditorTools
+{
+    /// <summary>
+    /// Runs the RANGE rules on a temporary controller with simulated key timing and logs PASS/FAIL per check.
+    /// Covers judgement, turn order, combo speed table, caps, penalties, combo timeout and idle decay.
+    /// (Which key belongs to which player is input wiring and is tested by hand.)
+    /// </summary>
+    public static class SpeedRangeSelfTest
+    {
+        const float Dt = 0.01f;
+
+        [MenuItem("Tools/Speed Range/Run Self Test")]
+        public static void Run()
+        {
+            var go = new GameObject("_SpeedRangeSelfTest") { hideFlags = HideFlags.HideAndDontSave };
+            var log = new List<string>();
+            int failures = 0;
+
+            void Check(string what, bool ok)
+            {
+                log.Add($"{(ok ? "PASS" : "FAIL")}  {what}");
+                if (!ok) failures++;
+            }
+
+            try
+            {
+                var c = go.AddComponent<SpeedRangeController>();
+                c.ResetGame();
+                Check($"start: speed {c.Speed} == 15, P1, combo 0", Mathf.Approximately(c.Speed, 15f) && c.CurrentPlayer == 1 && c.Combo == 0);
+
+                // Successes 1..10: speed follows the table and caps at 150; players alternate.
+                float[] expected = { 18f, 22.5f, 30f, 45f, 60f, 82.5f, 105f, 127.5f, 150f, 150f };
+                for (int i = 0; i < expected.Length; i++)
+                {
+                    int player = c.CurrentPlayer;
+                    PressInsideZone(c);
+                    Check($"success #{i + 1} by P{player}: combo {c.Combo}, speed {c.Speed} == {expected[i]}, next P{c.CurrentPlayer}",
+                          c.Combo == i + 1 && Mathf.Abs(c.Speed - expected[i]) < 0.001f && c.CurrentPlayer == 3 - player && c.Pointer == 0f);
+                }
+
+                // Pressing before the zone.
+                SkipToRound(c, () => c.ZoneStart > 5f);
+                int p = c.CurrentPlayer;
+                while (c.Pointer + 100f / c.cycleTime * Dt < c.ZoneStart - 1f) c.Tick(Dt, false);
+                float before = c.Speed;
+                c.Tick(Dt, true);
+                Check($"early press: combo 0, speed {before} -> {c.Speed} (-30), turn passes", c.Combo == 0 && Mathf.Abs(c.Speed - Mathf.Max(15f, before - 30f)) < 0.01f && c.CurrentPlayer == 3 - p);
+
+                // Pressing after the zone.
+                SkipToRound(c, () => c.ZoneEnd < 95f);
+                PressInsideZone(c);  // rebuild a combo first
+                SkipToRound(c, () => c.ZoneEnd < 95f, keepCombo: true);
+                before = c.Speed;
+                while (c.Pointer <= c.ZoneEnd + 1f) c.Tick(Dt, false);
+                c.Tick(Dt, true);
+                Check($"late press: combo reset to 0, speed {before} -> {c.Speed}", c.Combo == 0 && Mathf.Abs(c.Speed - Mathf.Max(15f, before - 30f)) < 0.02f);
+
+                // No press until 100.
+                c.ResetGame();
+                c.startSpeed = 100f; c.ResetGame();
+                p = c.CurrentPlayer;
+                float t = 0f;
+                while (c.CurrentPlayer == p) { c.Tick(Dt, false); t += Dt; }
+                Check($"no press: miss after {t:0.00}s (cycle 2.5s), speed {c.Speed:0.00} == 100 - 30 - idle decay", Mathf.Abs(t - 2.5f) < 0.02f && Mathf.Abs(c.Speed - (70f - 0.15f * t)) < 0.01f);
+
+                // Floor: a miss at min speed stays at 15.
+                c.startSpeed = 15f; c.ResetGame();
+                while (c.CurrentPlayer == 1) c.Tick(Dt, false);
+                Check($"miss at 15 stays 15 (got {c.Speed})", Mathf.Approximately(c.Speed, 15f));
+
+                // Idle decay while combo is 0 (slow pointer so no miss happens).
+                c.cycleTime = 100f; c.startSpeed = 50f; c.ResetGame();
+                for (int i = 0; i < 1000; i++) c.Tick(Dt, false);
+                Check($"idle 10s at combo 0: 50 -> {c.Speed:0.000} (expect 48.5)", Mathf.Abs(c.Speed - 48.5f) < 0.01f);
+
+                // Combo timeout (only reachable when the pointer cycle is longer than the combo time).
+                c.ResetGame();
+                PressInsideZone(c);
+                before = c.Speed;
+                float waited = 0f;
+                while (c.Combo > 0) { c.Tick(Dt, false); waited += Dt; }
+                Check($"combo timeout after {waited:0.00}s (expect 3): speed {before} -> {c.Speed} (-30)", Mathf.Abs(waited - 3f) < 0.02f && Mathf.Abs(c.Speed - (before - 30f)) < 0.01f);
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+
+            Debug.Log($"[SpeedRange SelfTest] {(failures == 0 ? "ALL PASSED" : failures + " FAILED")}\n" + string.Join("\n", log));
+        }
+
+        static void PressInsideZone(SpeedRangeController c)
+        {
+            float mid = (c.ZoneStart + c.ZoneEnd) * 0.5f;
+            while (c.Pointer + 100f / c.cycleTime * Dt < mid) c.Tick(Dt, false);
+            c.Tick(Dt, true);
+        }
+
+        /// <summary>Lets rounds run out (as misses) until one matches; optionally keeps the current combo by succeeding instead.</summary>
+        static void SkipToRound(SpeedRangeController c, System.Func<bool> wanted, bool keepCombo = false)
+        {
+            for (int guard = 0; guard < 200 && !wanted(); guard++)
+            {
+                if (keepCombo) PressInsideZone(c);
+                else { int p = c.CurrentPlayer; while (c.CurrentPlayer == p) c.Tick(Dt, false); }
+            }
+        }
+    }
+}
