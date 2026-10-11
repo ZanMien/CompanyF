@@ -679,6 +679,7 @@ GameObject:
   - component: {fileID: 330585545}
   - component: {fileID: 330585544}
   - component: {fileID: 330585547}
+  - component: {fileID: 330585548}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -754,7 +755,7 @@ Transform:
   m_GameObject: {fileID: 330585543}
   serializedVersion: 2
   m_LocalRotation: {x: 0.17364816, y: 0, z: 0, w: 0.9848078}
-  m_LocalPosition: {x: 0, y: 300, z: 0}
+  m_LocalPosition: {x: 0, y: 6.1123, z: -10.59}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -804,6 +805,22 @@ MonoBehaviour:
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
   m_Version: 2
+--- !u!114 &330585548
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 330585543}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aff4c968bd0e5fa45b164b3adaef5d75, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CompanyF.Train.CameraFollow
+  target: {fileID: 1324613413}
+  offset: {x: 0, y: 6, z: -16}
+  lookAt: {x: 0, y: 2.5, z: 6}
+  rotationSmoothing: 4
 --- !u!1001 &345139766
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3886,6 +3903,58 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4367765623577672392, guid: 321802a6c3b3c3841a4112003e99a36c, type: 3}
   m_PrefabInstance: {fileID: 1300367881}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1324613412
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1324613413}
+  - component: {fileID: 1324613414}
+  m_Layer: 0
+  m_Name: Train
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1324613413
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1324613412}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.1123, z: 5.41}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1429794824}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1324613414
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1324613412}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 867a885ca3b678c45b85102539077906, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CompanyF.Train.TrainFollower
+  route: {fileID: 0}
+  speed: 15
+  rightKey: 32
+  frontAxle: 4.34
+  rearAxle: 2.14
+  frontBumper: 6.01
+  rearBumper: 5.41
 --- !u!1 &1329887774
 GameObject:
   m_ObjectHideFlags: 0
@@ -4400,6 +4469,68 @@ PrefabInstance:
 Transform:
   m_CorrespondingSourceObject: {fileID: 4367765623577672392, guid: 321802a6c3b3c3841a4112003e99a36c, type: 3}
   m_PrefabInstance: {fileID: 1429252506}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1001 &1429794823
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 1324613413}
+    m_Modifications:
+    - target: {fileID: 513689410399693367, guid: ba3f35e4f8ec9db44bc2316867012bcc, type: 3}
+      propertyPath: m_Name
+      value: Steam_Locomotive
+      objectReference: {fileID: 0}
+    - target: {fileID: 894858843810476173, guid: ba3f35e4f8ec9db44bc2316867012bcc, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 894858843810476173, guid: ba3f35e4f8ec9db44bc2316867012bcc, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0.0391
+      objectReference: {fileID: 0}
+    - target: {fileID: 894858843810476173, guid: ba3f35e4f8ec9db44bc2316867012bcc, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 894858843810476173, guid: ba3f35e4f8ec9db44bc2316867012bcc, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 894858843810476173, guid: ba3f35e4f8ec9db44bc2316867012bcc, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 894858843810476173, guid: ba3f35e4f8ec9db44bc2316867012bcc, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 894858843810476173, guid: ba3f35e4f8ec9db44bc2316867012bcc, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 894858843810476173, guid: ba3f35e4f8ec9db44bc2316867012bcc, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 894858843810476173, guid: ba3f35e4f8ec9db44bc2316867012bcc, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 894858843810476173, guid: ba3f35e4f8ec9db44bc2316867012bcc, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: ba3f35e4f8ec9db44bc2316867012bcc, type: 3}
+--- !u!4 &1429794824 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 894858843810476173, guid: ba3f35e4f8ec9db44bc2316867012bcc, type: 3}
+  m_PrefabInstance: {fileID: 1429794823}
   m_PrefabAsset: {fileID: 0}
 --- !u!1001 &1454968178
 PrefabInstance:
@@ -5625,3 +5756,4 @@ SceneRoots:
   - {fileID: 410087041}
   - {fileID: 832575519}
   - {fileID: 605459731}
+  - {fileID: 1324613413}
