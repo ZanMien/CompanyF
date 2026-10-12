@@ -494,7 +494,7 @@ MonoBehaviour:
   left: {fileID: 1735581640}
   right: {fileID: 191502352}
   isFinal: 1
-  triggerDistance: 21.72999
+  triggerDistance: 65.18997
 --- !u!4 &77267322
 Transform:
   m_ObjectHideFlags: 0
@@ -700,7 +700,7 @@ MonoBehaviour:
   left: {fileID: 1092599535}
   right: {fileID: 932609907}
   isFinal: 0
-  triggerDistance: 21.72999
+  triggerDistance: 65.18997
 --- !u!4 &165099645
 Transform:
   m_ObjectHideFlags: 0
@@ -7030,7 +7030,7 @@ MonoBehaviour:
   left: {fileID: 1043925207}
   right: {fileID: 1329887775}
   isFinal: 0
-  triggerDistance: 21.72999
+  triggerDistance: 65.18997
 --- !u!4 &1651859114
 Transform:
   m_ObjectHideFlags: 0

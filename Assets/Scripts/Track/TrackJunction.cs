@@ -18,8 +18,8 @@ namespace CompanyF.Track
         [Tooltip("Passing this junction ends the game.")]
         public bool isFinal;
 
-        [Tooltip("Announce the junction when the train nose is this far (m) before it. Default = one rails_b piece, i.e. on entering the piece before the turnout.")]
-        [Min(0f)] public float triggerDistance = 21.72999f;
+        [Tooltip("Announce the junction when the train nose is this far (m) before it. Default = three rails_b pieces, i.e. on entering the third piece before the turnout.")]
+        [Min(0f)] public float triggerDistance = 3f * 21.72999f;
 
         public Vector3 Position => transform.position;
 

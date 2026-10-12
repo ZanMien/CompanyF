@@ -28,6 +28,7 @@ namespace CompanyF.Track.EditorTools
         const int SectionPieces = 10;  // 217.3 m, the fork is the first piece after the 200 m mark
         const int BranchPieces = 7;    // 152.1 m between fork and merge
         const int FinalPieces = 3;     // run-out after the last fork
+        const int TriggerPieces = 3;   // the quiz starts when the nose enters the 3rd rails_b before a turnout
 
         static readonly string[] ForkPrefabs = { "rails_c", "rails_c", "rails_d" };
 
@@ -87,7 +88,7 @@ namespace CompanyF.Track.EditorTools
                 junction.transform.position = cursor + Vector3.up * RailTop;
                 junction.index = n;
                 junction.isFinal = final;
-                junction.triggerDistance = LenB;  // announce on entering the last rails_b before the turnout
+                junction.triggerDistance = TriggerPieces * LenB;
                 section.endJunction = junction;
                 route.junctions.Add(junction);
                 var fork = PlaceForward(junction.transform, forkPrefab, $"Turnout_{forkPrefab}", cursor, 0f);
