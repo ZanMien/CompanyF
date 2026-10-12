@@ -51,8 +51,14 @@ namespace CompanyF.Quiz
         [Tooltip("One entry per answered junction, in order.")]
         [SerializeField] List<QuizResult> results = new List<QuizResult>();
 
+        /// <summary>Raised when a question appears on screen.</summary>
+        public event Action<TrackJunction> Started;
+
         /// <summary>Raised the moment the direction is decided (both answered, or answer time ran out).</summary>
         public event Action<QuizResult> Decided;
+
+        /// <summary>Raised when the quiz screen closes and game time is back to normal.</summary>
+        public event Action<QuizResult> Ended;
 
         public IReadOnlyList<QuizResult> Results => results;
         public QuizPhase Phase { get; private set; }
@@ -126,6 +132,7 @@ namespace CompanyF.Quiz
             savedTimeScale = Time.timeScale;
             Time.timeScale = savedTimeScale / slowFactor;
             if (speedRange != null) speedRange.PointerPaused = true;
+            Started?.Invoke(target);
         }
 
         /// <summary>Advances the quiz by <paramref name="dt"/> real seconds with this frame's key presses.</summary>
@@ -181,6 +188,7 @@ namespace CompanyF.Quiz
             junction = null;
             Time.timeScale = savedTimeScale;
             if (speedRange != null) speedRange.PointerPaused = false;
+            if (Current != null) Ended?.Invoke(Current);
         }
 
         void SetDirection(TrackJunction target, QuizChoice side)

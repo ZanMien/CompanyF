@@ -25,6 +25,12 @@ namespace CompanyF.Train
         /// </summary>
         public event Action<TrackJunction> JunctionApproaching;
 
+        /// <summary>Raised once per track model when the nose passes its far end: (model, segment it was travelled on).</summary>
+        public event Action<Transform, TrackSegment> PieceExited;
+
+        /// <summary>Raised once when the nose reaches the end of the line (after the last <see cref="PieceExited"/>).</summary>
+        public event Action ReachedEnd;
+
         [Header("Locomotive geometry (m from the model pivot, along the track)")]
         [SerializeField] float frontAxle = 4.34f;
         [SerializeField] float rearAxle = 2.14f;
@@ -35,6 +41,7 @@ namespace CompanyF.Train
         readonly List<TrackSegment> segments = new List<TrackSegment>();
         readonly List<float> segmentStart = new List<float>();
         readonly HashSet<TrackJunction> announced = new HashSet<TrackJunction>();
+        readonly HashSet<Transform> exitedPieces = new HashSet<Transform>();
         readonly Dictionary<TrackJunction, bool> choices = new Dictionary<TrackJunction, bool>();
         float endOfLine = -1f;
         float distance;
@@ -91,12 +98,17 @@ namespace CompanyF.Train
                 nose = covered;
             }
 
-            if (endOfLine >= 0f && nose >= endOfLine)
+            bool arriving = endOfLine >= 0f && nose >= endOfLine;
+            if (arriving) nose = endOfLine;
+            ExitPieces(nose);
+
+            if (arriving)
             {
                 distance = endOfLine - frontBumper;
                 Arrived = true;
                 Apply();
                 Debug.Log("到達終點", this);
+                ReachedEnd?.Invoke();
                 return;
             }
 
@@ -129,6 +141,22 @@ namespace CompanyF.Train
 
                 segments.Add(next);
                 segmentStart.Add(segEnd);
+            }
+        }
+
+        void ExitPieces(float nose)
+        {
+            const float Epsilon = 0.001f;  // the line ends exactly on the last piece's end
+            for (int i = 0; i < segments.Count; i++)
+            {
+                if (segmentStart[i] > nose) break;
+                foreach (var piece in segments[i].Pieces)
+                {
+                    if (piece.model == null || exitedPieces.Contains(piece.model)) continue;
+                    if (segmentStart[i] + piece.end > nose + Epsilon) break;
+                    exitedPieces.Add(piece.model);
+                    PieceExited?.Invoke(piece.model, segments[i]);
+                }
             }
         }
 

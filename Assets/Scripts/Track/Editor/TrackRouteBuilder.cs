@@ -80,6 +80,9 @@ namespace CompanyF.Track.EditorTools
                 var sectionStart = cursor;
                 cursor = PlaceRun(section.transform, cursor, 0f, SectionPieces);
                 section.SetPoints(ToLocal(section.transform, new List<Vector3> { sectionStart + Vector3.up * RailTop, cursor + Vector3.up * RailTop }));
+                var sectionExits = new List<(Transform, Vector3)>();
+                AddRailExits(sectionExits, section.transform);
+                SetPieces(section, sectionExits);
 
                 // Fork.
                 string forkPrefab = ForkPrefabs[f];
@@ -108,6 +111,12 @@ namespace CompanyF.Track.EditorTools
                 AddPoint(leftPts, leftEnd + Vector3.up * RailTop);
                 AddPoint(rightPts, rightEnd + Vector3.up * RailTop);
 
+                // Models each branch runs over, with the point where the train leaves each one.
+                var leftExits = new List<(Transform, Vector3)> { (fork.transform, leftPts[Straight(isD ? LenD : LenC).Length - 1]) };
+                var rightExits = new List<(Transform, Vector3)> { (fork.transform, rightPts[(isD ? DivergeD : DivergeC).Length - 1]) };
+                AddRailExits(leftExits, left.transform);
+                AddRailExits(rightExits, right.transform);
+
                 if (!final)
                 {
                     // Merge: rails_c turned around. Its straight leg takes the right branch, its diverging leg the left one.
@@ -118,12 +127,17 @@ namespace CompanyF.Track.EditorTools
                     var merge = PlaceMerge(mergeRoot.transform, "rails_c", "Turnout_rails_c", outCentre);
                     AddLeg(leftPts, merge.transform, DivergeC, true);
                     AddLeg(rightPts, merge.transform, Straight(LenC), true);
+                    var mergeExit = merge.transform.TransformPoint(new Vector3(-CentreX, RailTop, 0f));
+                    leftExits.Add((merge.transform, mergeExit));
+                    rightExits.Add((merge.transform, mergeExit));
                     cursor = outCentre;
                     waitingForNext = new List<TrackSegment> { left, right };
                 }
 
                 left.SetPoints(ToLocal(left.transform, leftPts));
                 right.SetPoints(ToLocal(right.transform, rightPts));
+                SetPieces(left, leftExits);
+                SetPieces(right, rightExits);
             }
 
             Selection.activeGameObject = root;
@@ -220,6 +234,21 @@ namespace CompanyF.Track.EditorTools
                           $"next={(seg.next ? seg.next.name : "-")} junction={(seg.endJunction ? seg.endJunction.name : "-")}");
             foreach (var j in route.junctions)
                 Debug.Log($"[TrackRoute] {j.name}: pos={j.Position} left={j.left.name} right={j.right.name} final={j.isFinal}");
+        }
+
+        /// <summary>Adds every rails_b under <paramref name="run"/> with its far-end centreline point.</summary>
+        static void AddRailExits(List<(Transform, Vector3)> exits, Transform run)
+        {
+            foreach (Transform rail in run)
+                exits.Add((rail, rail.TransformPoint(new Vector3(-CentreX, RailTop, -LenB))));
+        }
+
+        static void SetPieces(TrackSegment segment, List<(Transform model, Vector3 exit)> exits)
+        {
+            var pieces = new List<TrackSegment.Piece>(exits.Count);
+            foreach (var (model, exit) in exits)
+                pieces.Add(new TrackSegment.Piece { model = model, end = segment.DistanceAlong(exit) });
+            segment.SetPieces(pieces);
         }
 
         static T NewChild<T>(Transform parent, string name) where T : Component

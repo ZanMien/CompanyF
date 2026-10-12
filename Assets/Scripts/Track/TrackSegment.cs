@@ -9,7 +9,18 @@ namespace CompanyF.Track
     /// </summary>
     public class TrackSegment : MonoBehaviour
     {
+        /// <summary>One track model on this segment's path and the distance along the path where it ends.</summary>
+        [System.Serializable]
+        public struct Piece
+        {
+            public Transform model;
+            public float end;
+        }
+
         [SerializeField] List<Vector3> points = new List<Vector3>();
+
+        [Tooltip("Track models this path runs over, in travel order. A turnout appears in both branches it serves.")]
+        [SerializeField] List<Piece> pieces = new List<Piece>();
 
         [Tooltip("Segment that follows when this one does not end at a junction. Empty = end of the line.")]
         public TrackSegment next;
@@ -26,11 +37,40 @@ namespace CompanyF.Track
             get { EnsureCache(); return cumulative.Length == 0 ? 0f : cumulative[cumulative.Length - 1]; }
         }
 
+        public IReadOnlyList<Piece> Pieces => pieces;
+
         public void SetPoints(IList<Vector3> localPoints)
         {
             points.Clear();
             points.AddRange(localPoints);
             cumulative = null;
+        }
+
+        public void SetPieces(IList<Piece> list)
+        {
+            pieces.Clear();
+            pieces.AddRange(list);
+        }
+
+        /// <summary>Distance along the path to the point closest to <paramref name="worldPoint"/>.</summary>
+        public float DistanceAlong(Vector3 worldPoint)
+        {
+            EnsureCache();
+            var p = transform.InverseTransformPoint(worldPoint);
+            float best = float.MaxValue, at = 0f;
+            for (int i = 1; i < points.Count; i++)
+            {
+                var a = points[i - 1];
+                var ab = points[i] - a;
+                float t = ab.sqrMagnitude > 0f ? Mathf.Clamp01(Vector3.Dot(p - a, ab) / ab.sqrMagnitude) : 0f;
+                float d = (a + ab * t - p).sqrMagnitude;
+                if (d < best)
+                {
+                    best = d;
+                    at = cumulative[i - 1] + ab.magnitude * t;
+                }
+            }
+            return at;
         }
 
         /// <summary>World position and forward direction at <paramref name="distance"/> metres along the segment (clamped).</summary>
