@@ -1,7 +1,7 @@
+using System;
 using System.Collections.Generic;
 using CompanyF.Track;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace CompanyF.Train
 {
@@ -18,8 +18,12 @@ namespace CompanyF.Train
         [Tooltip("Travel speed in m/s. Can be changed while playing.")]
         [Min(0f)] public float speed = 15f;
 
-        [Tooltip("Hold this key when the train nose reaches a junction to take the right branch; otherwise it goes left.")]
-        public Key rightKey = Key.R;
+        /// <summary>
+        /// Raised once per junction when the nose comes within its trigger distance.
+        /// A listener must answer with <see cref="SetJunctionChoice"/>; the train waits at the junction until it does.
+        /// With no listener the train goes left.
+        /// </summary>
+        public event Action<TrackJunction> JunctionApproaching;
 
         [Header("Locomotive geometry (m from the model pivot, along the track)")]
         [SerializeField] float frontAxle = 4.34f;
@@ -30,12 +34,23 @@ namespace CompanyF.Train
         // Segments actually travelled, with the route distance at which each one starts.
         readonly List<TrackSegment> segments = new List<TrackSegment>();
         readonly List<float> segmentStart = new List<float>();
+        readonly HashSet<TrackJunction> announced = new HashSet<TrackJunction>();
+        readonly Dictionary<TrackJunction, bool> choices = new Dictionary<TrackJunction, bool>();
         float endOfLine = -1f;
         float distance;
 
         public float Distance => distance;
         public bool Arrived { get; private set; }
         public TrackSegment CurrentSegment => segments.Count > 0 ? segments[SegmentIndexAt(distance)] : null;
+
+        /// <summary>True while the nose is held at a junction whose direction is not decided yet.</summary>
+        public bool WaitingAtJunction { get; private set; }
+
+        /// <summary>Sets which branch the train takes at <paramref name="junction"/>. The first call wins.</summary>
+        public void SetJunctionChoice(TrackJunction junction, bool goLeft)
+        {
+            if (junction != null && !choices.ContainsKey(junction)) choices[junction] = goLeft;
+        }
 
         void Start()
         {
@@ -50,17 +65,31 @@ namespace CompanyF.Train
             segments.Add(route.start);
             segmentStart.Add(0f);
             distance = rearBumper;  // whole locomotive on the first rail
-            Extend(distance + frontBumper);
-            Apply();
+            Advance(0f);
         }
 
         void Update()
         {
             if (Arrived) return;
+            Advance(speed * Time.deltaTime);
+        }
 
-            distance += speed * Time.deltaTime;
+        void Advance(float step)
+        {
+            distance += step;
             float nose = distance + frontBumper;
+            AnnounceJunctions(nose);
             Extend(nose);
+
+            // Undecided junction ahead: hold the nose at the fork.
+            int last = segments.Count - 1;
+            float covered = segmentStart[last] + segments[last].Length;
+            WaitingAtJunction = endOfLine < 0f && nose > covered;
+            if (WaitingAtJunction)
+            {
+                distance = covered - frontBumper;
+                nose = covered;
+            }
 
             if (endOfLine >= 0f && nose >= endOfLine)
             {
@@ -87,9 +116,9 @@ namespace CompanyF.Train
                 var next = seg.next;
                 if (seg.endJunction != null)
                 {
-                    bool goRight = Keyboard.current != null && Keyboard.current[rightKey].isPressed;
-                    next = seg.endJunction.Choose(!goRight);
-                    Debug.Log($"[Train] {seg.endJunction.name}: {(goRight ? "右" : "左")} -> {(next ? next.name : "none")}", this);
+                    if (!choices.TryGetValue(seg.endJunction, out bool goLeft)) return;  // not decided yet
+                    next = seg.endJunction.Choose(goLeft);
+                    Debug.Log($"[Train] {seg.endJunction.name}: {(goLeft ? "左" : "右")} -> {(next ? next.name : "none")}", this);
                 }
 
                 if (next == null)
@@ -100,6 +129,21 @@ namespace CompanyF.Train
 
                 segments.Add(next);
                 segmentStart.Add(segEnd);
+            }
+        }
+
+        void AnnounceJunctions(float nose)
+        {
+            for (int i = 0; i < segments.Count; i++)
+            {
+                var junction = segments[i].endJunction;
+                if (junction == null || announced.Contains(junction)) continue;
+                float junctionAt = segmentStart[i] + segments[i].Length;
+                if (nose < junctionAt - junction.triggerDistance) continue;
+
+                announced.Add(junction);
+                if (JunctionApproaching == null) SetJunctionChoice(junction, true);
+                else JunctionApproaching.Invoke(junction);
             }
         }
 

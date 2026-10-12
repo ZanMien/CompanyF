@@ -87,6 +87,7 @@ namespace CompanyF.Track.EditorTools
                 junction.transform.position = cursor + Vector3.up * RailTop;
                 junction.index = n;
                 junction.isFinal = final;
+                junction.triggerDistance = LenB;  // announce on entering the last rails_b before the turnout
                 section.endJunction = junction;
                 route.junctions.Add(junction);
                 var fork = PlaceForward(junction.transform, forkPrefab, $"Turnout_{forkPrefab}", cursor, 0f);
