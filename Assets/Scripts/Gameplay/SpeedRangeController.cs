@@ -45,6 +45,13 @@ namespace CompanyF.Gameplay
         [Tooltip("Speed lost per second while the combo is 0.")]
         [Min(0f)] public float idleDecayPerSecond = 0.15f;
 
+        [Header("Gears")]
+        [Tooltip("The min-max speed range is split evenly into this many gears. Each gear caps the speed at its top.")]
+        [Min(1)] public int gearCount = 3;
+
+        [Tooltip("Speed lost per second while braking.")]
+        [Min(0f)] public float brakePerSecond = 30f;
+
         [Header("Input")]
         public Key player1Key = Key.F;
         public Key player2Key = Key.Enter;
@@ -61,7 +68,29 @@ namespace CompanyF.Gameplay
         public int Combo { get; private set; }
         public float ComboTimeLeft { get; private set; }
         public float Speed { get; private set; }
-        public bool Finished => train != null && train.Arrived;
+        public int Gear { get; private set; } = 1;
+        public float GearCap => GearTop(Gear);
+        public bool CanShiftUp => !Finished && Gear < gearCount && Speed >= GearCap - 0.001f;
+        public bool Finished => train != null && train.Stopped;
+
+        /// <summary>Top speed of <paramref name="gear"/> (1-based).</summary>
+        public float GearTop(int gear) => minSpeed + (maxSpeed - minSpeed) * Mathf.Clamp(gear, 1, gearCount) / gearCount;
+
+        /// <summary>Shifts up one gear if the speed has reached the current gear's top. Returns whether it shifted.</summary>
+        public bool TryShiftUp()
+        {
+            if (!CanShiftUp) return false;
+            Gear++;
+            return true;
+        }
+
+        /// <summary>Brakes for <paramref name="dt"/> seconds (down to the minimum speed).</summary>
+        public void Brake(float dt)
+        {
+            if (Finished) return;
+            ChangeSpeed(-brakePerSecond * dt);
+            ApplySpeed();
+        }
 
         void Start()
         {
@@ -76,10 +105,11 @@ namespace CompanyF.Gameplay
             Tick(Time.deltaTime, CurrentPlayerPressed());
         }
 
-        /// <summary>Back to the starting state: start speed, no combo, player 1, new round.</summary>
+        /// <summary>Back to the starting state: gear 1, start speed, no combo, player 1, new round.</summary>
         public void ResetGame()
         {
-            Speed = Mathf.Clamp(startSpeed, minSpeed, maxSpeed);
+            Gear = 1;
+            Speed = Mathf.Clamp(startSpeed, minSpeed, GearCap);
             Combo = 0;
             ComboTimeLeft = 0f;
             CurrentPlayer = 1;
@@ -157,7 +187,21 @@ namespace CompanyF.Gameplay
             ZoneStart = UnityEngine.Random.Range(0f, BarMax - length);
         }
 
-        void ChangeSpeed(float delta) => Speed = Mathf.Clamp(Speed + delta, minSpeed, maxSpeed);
+        /// <summary>
+        /// Speed-ups stop at the current gear's top. Any slow-down shifts down while the speed
+        /// is below the top of the gear underneath.
+        /// </summary>
+        void ChangeSpeed(float delta)
+        {
+            if (delta >= 0f)
+            {
+                Speed = Mathf.Clamp(Speed + delta, minSpeed, GearCap);
+                return;
+            }
+
+            Speed = Mathf.Clamp(Speed + delta, minSpeed, maxSpeed);
+            while (Gear > 1 && Speed < GearTop(Gear - 1)) Gear--;
+        }
 
         void ApplySpeed()
         {

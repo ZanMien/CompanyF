@@ -45,6 +45,9 @@ namespace CompanyF.Scoring.EditorTools
             veil.raycastTarget = false;
 
             var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            var title = NewLine(overlay, "TitleText", font, "オーバーヒート", 230f);
+            title.color = new Color(0.8f, 0.1f, 0.05f, 1f);
+            title.gameObject.SetActive(false);
             var distance = NewLine(overlay, "DistanceText", font, "距離：0m", 70f);
             var points = NewLine(overlay, "ScoreText", font, "スコア：0", -70f);
 
@@ -52,6 +55,7 @@ namespace CompanyF.Scoring.EditorTools
             var so = new SerializedObject(ui);
             so.FindProperty("score").objectReferenceValue = manager;
             so.FindProperty("overlay").objectReferenceValue = overlayGo;
+            so.FindProperty("titleText").objectReferenceValue = title;
             so.FindProperty("distanceText").objectReferenceValue = distance;
             so.FindProperty("scoreText").objectReferenceValue = points;
             so.ApplyModifiedPropertiesWithoutUndo();

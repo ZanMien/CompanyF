@@ -6,7 +6,8 @@ namespace CompanyF.UI
 {
     /// <summary>
     /// Placeholder view for <see cref="SpeedRangeController"/>: bar with success zone and pointer,
-    /// current player, combo and speed. Only reads the controller, so it can be swapped for the final design.
+    /// current player and combo (speed is shown by <see cref="StatusUI"/>). Only reads the controller,
+    /// so it can be swapped for the final design.
     /// </summary>
     public class SpeedRangeUI : MonoBehaviour
     {
@@ -19,7 +20,6 @@ namespace CompanyF.UI
         [Header("Labels")]
         [SerializeField] Text playerLabel;
         [SerializeField] Text comboLabel;
-        [SerializeField] Text speedLabel;
         [SerializeField] Text resultLabel;
 
         [Min(0f)] public float resultShowTime = 0.6f;
@@ -59,7 +59,6 @@ namespace CompanyF.UI
                 comboLabel.text = controller.Combo > 0
                     ? $"COMBO {controller.Combo}  ({controller.ComboTimeLeft:0.0}s)"
                     : "COMBO 0";
-            if (speedLabel != null) speedLabel.text = $"SPEED {controller.Speed:0.00}";
 
             if (resultLabel != null && resultTimer > 0f)
             {

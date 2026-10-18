@@ -39,6 +39,13 @@ namespace CompanyF.Train
 
         public float Distance => distance;
         public bool Arrived { get; private set; }
+        /// <summary>Stopped early by <see cref="Halt"/> (e.g. game over).</summary>
+        public bool Halted { get; private set; }
+        /// <summary>Not moving any more: reached the end or halted.</summary>
+        public bool Stopped => Arrived || Halted;
+
+        /// <summary>Stops the train where it is; it will not move again.</summary>
+        public void Halt() => Halted = true;
         public TrackSegment CurrentSegment => segments.Count > 0 ? segments[SegmentIndexAt(distance)] : null;
 
         void Start()
@@ -59,7 +66,7 @@ namespace CompanyF.Train
 
         void Update()
         {
-            if (Arrived) return;
+            if (Stopped) return;
             Advance(speed * Time.deltaTime);
         }
 

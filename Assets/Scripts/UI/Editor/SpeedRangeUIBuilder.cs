@@ -66,8 +66,6 @@ namespace CompanyF.UI.EditorTools
             // Debug info: top left.
             var combo = NewText(root, "ComboLabel", font, "COMBO 0", 32, TextAnchor.UpperLeft);
             Place(combo, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(30f, -30f), new Vector2(500f, 44f));
-            var speed = NewText(root, "SpeedLabel", font, "SPEED 0", 32, TextAnchor.UpperLeft);
-            Place(speed, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(30f, -74f), new Vector2(500f, 44f));
 
             var ui = canvasGo.AddComponent<SpeedRangeUI>();
             var so = new SerializedObject(ui);
@@ -76,7 +74,6 @@ namespace CompanyF.UI.EditorTools
             so.FindProperty("pointer").objectReferenceValue = pointer;
             so.FindProperty("playerLabel").objectReferenceValue = player.GetComponent<Text>();
             so.FindProperty("comboLabel").objectReferenceValue = combo.GetComponent<Text>();
-            so.FindProperty("speedLabel").objectReferenceValue = speed.GetComponent<Text>();
             so.FindProperty("resultLabel").objectReferenceValue = result.GetComponent<Text>();
             so.ApplyModifiedPropertiesWithoutUndo();
 

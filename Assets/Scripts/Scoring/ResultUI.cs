@@ -3,11 +3,16 @@ using UnityEngine.UI;
 
 namespace CompanyF.Scoring
 {
-    /// <summary>Placeholder results screen: grey-white veil with distance and score, shown when the train reaches the end.</summary>
+    /// <summary>
+    /// Placeholder results screen: grey-white veil with distance and score, shown when the game ends.
+    /// On overheat a title line is shown above them.
+    /// </summary>
     public class ResultUI : MonoBehaviour
     {
         [SerializeField] ScoreManager score;
         [SerializeField] GameObject overlay;
+        [Tooltip("Shown only when the game ended by overheating.")]
+        [SerializeField] Text titleText;
         [SerializeField] Text distanceText;
         [SerializeField] Text scoreText;
 
@@ -31,6 +36,11 @@ namespace CompanyF.Scoring
         void Update()
         {
             if (score == null || !score.Finished || overlay == null || overlay.activeSelf) return;
+            if (titleText != null)
+            {
+                titleText.text = "オーバーヒート";
+                titleText.gameObject.SetActive(score.Overheated);
+            }
             if (distanceText != null) distanceText.text = $"距離：{score.Distance:0}m";
             if (scoreText != null) scoreText.text = $"スコア：{score.Score}";
             overlay.SetActive(true);
