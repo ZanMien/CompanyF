@@ -19,14 +19,11 @@ namespace CompanyF.Track
 
         [SerializeField] List<Vector3> points = new List<Vector3>();
 
-        [Tooltip("Track models this path runs over, in travel order. A turnout appears in both branches it serves.")]
+        [Tooltip("Track models this path runs over, in travel order.")]
         [SerializeField] List<Piece> pieces = new List<Piece>();
 
-        [Tooltip("Segment that follows when this one does not end at a junction. Empty = end of the line.")]
+        [Tooltip("Segment that follows this one. Empty = end of the line.")]
         public TrackSegment next;
-
-        [Tooltip("Junction at the end of this segment, where the player picks left or right.")]
-        public TrackJunction endJunction;
 
         float[] cumulative;
 

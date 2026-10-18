@@ -63,12 +63,6 @@ namespace CompanyF.Gameplay
         public float Speed { get; private set; }
         public bool Finished => train != null && train.Arrived;
 
-        /// <summary>
-        /// While true the pointer stands still and key presses are ignored.
-        /// The combo timer and idle decay keep running on (scaled) game time.
-        /// </summary>
-        public bool PointerPaused { get; set; }
-
         void Start()
         {
             if (train == null) train = FindFirstObjectByType<TrainFollower>();
@@ -79,7 +73,7 @@ namespace CompanyF.Gameplay
         void Update()
         {
             if (Finished) return;
-            Tick(Time.deltaTime, !PointerPaused && CurrentPlayerPressed());
+            Tick(Time.deltaTime, CurrentPlayerPressed());
         }
 
         /// <summary>Back to the starting state: start speed, no combo, player 1, new round.</summary>
@@ -111,15 +105,12 @@ namespace CompanyF.Gameplay
                 ChangeSpeed(-idleDecayPerSecond * dt);
             }
 
-            if (!PointerPaused)
-            {
-                Pointer = Mathf.Min(Pointer + BarMax / cycleTime * dt, BarMax);
+            Pointer = Mathf.Min(Pointer + BarMax / cycleTime * dt, BarMax);
 
-                if (pressed)
-                    Judge(Pointer >= ZoneStart && Pointer <= ZoneEnd);
-                else if (Pointer >= BarMax)
-                    Judge(false);
-            }
+            if (pressed)
+                Judge(Pointer >= ZoneStart && Pointer <= ZoneEnd);
+            else if (Pointer >= BarMax)
+                Judge(false);
 
             ApplySpeed();
         }

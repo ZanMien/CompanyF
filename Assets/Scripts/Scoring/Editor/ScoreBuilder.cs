@@ -28,7 +28,7 @@ namespace CompanyF.Scoring.EditorTools
             Undo.RegisterCreatedObjectUndo(canvasGo, "Create Score");
             var canvas = canvasGo.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 20;  // above the speed bar and the quiz
+            canvas.sortingOrder = 20;  // above the speed bar
             var scaler = canvasGo.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920f, 1080f);
