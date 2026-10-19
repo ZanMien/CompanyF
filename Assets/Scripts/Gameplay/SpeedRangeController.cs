@@ -39,8 +39,11 @@ namespace CompanyF.Gameplay
         public float maxSpeed = 150f;
         public float minSpeed = 15f;
 
-        [Tooltip("Speed lost on a miss, or when the combo times out.")]
-        [Min(0f)] public float failPenalty = 30f;
+        [Tooltip("Speed lost on a miss (wrong timing, or no press before 100).")]
+        [Min(0f)] public float failPenalty = 10f;
+
+        [Tooltip("Speed lost when the combo times out.")]
+        [Min(0f)] public float comboTimeoutPenalty = 30f;
 
         [Tooltip("Speed lost per second while the combo is 0.")]
         [Min(0f)] public float idleDecayPerSecond = 0.15f;
@@ -127,7 +130,7 @@ namespace CompanyF.Gameplay
                 {
                     Combo = 0;
                     ComboTimeLeft = 0f;
-                    ChangeSpeed(-failPenalty);
+                    ChangeSpeed(-comboTimeoutPenalty);
                 }
             }
             else

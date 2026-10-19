@@ -20,6 +20,8 @@ namespace CompanyF.UI
         [Range(0f, 1f)] public float warningFraction = 0.8f;
         public Color normalColor = Color.white;
         public Color warningColor = new Color(1f, 0.35f, 0.25f);
+        [Tooltip("Speed text colour while the speed is at the current gear's top (not shown while braking).")]
+        public Color gearTopColor = new Color(1f, 0.2f, 0.2f);
 
         [Tooltip("OS fonts tried in order so Japanese text renders (the built-in font has no Japanese glyphs).")]
         public string[] fontNames = { "Yu Gothic UI", "Meiryo UI", "Meiryo", "MS Gothic", "Noto Sans CJK JP", "Hiragino Sans" };
@@ -45,6 +47,11 @@ namespace CompanyF.UI
             {
                 Set(gearText, $"ギア：{speedRange.Gear}");
                 Set(speedText, $"速度：{Mathf.RoundToInt(speedRange.Speed)} km/h");
+
+                // Red while sitting at the gear's top speed (time to shift), but not while braking.
+                bool atGearTop = speedRange.Speed >= speedRange.GearCap - 0.001f;
+                bool braking = controls != null && controls.IsBraking;
+                if (speedText != null) speedText.color = atGearTop && !braking ? gearTopColor : normalColor;
             }
 
             if (boiler != null && temperatureText != null)

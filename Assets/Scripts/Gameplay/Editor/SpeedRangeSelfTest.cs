@@ -49,7 +49,7 @@ namespace CompanyF.Gameplay.EditorTools
                 while (c.Pointer + 100f / c.cycleTime * Dt < c.ZoneStart - 1f) c.Tick(Dt, false);
                 float before = c.Speed;
                 c.Tick(Dt, true);
-                Check($"early press: combo 0, speed {before} -> {c.Speed} (-30), turn passes", c.Combo == 0 && Mathf.Abs(c.Speed - Mathf.Max(15f, before - 30f)) < 0.01f && c.CurrentPlayer == 3 - p);
+                Check($"early press: combo 0, speed {before} -> {c.Speed} (-10), turn passes", c.Combo == 0 && Mathf.Abs(c.Speed - Mathf.Max(15f, before - 10f)) < 0.01f && c.CurrentPlayer == 3 - p);
 
                 // Pressing after the zone.
                 SkipToRound(c, () => c.ZoneEnd < 95f);
@@ -58,7 +58,7 @@ namespace CompanyF.Gameplay.EditorTools
                 before = c.Speed;
                 while (c.Pointer <= c.ZoneEnd + 1f) c.Tick(Dt, false);
                 c.Tick(Dt, true);
-                Check($"late press: combo reset to 0, speed {before} -> {c.Speed}", c.Combo == 0 && Mathf.Abs(c.Speed - Mathf.Max(15f, before - 30f)) < 0.02f);
+                Check($"late press: combo reset to 0, speed {before} -> {c.Speed}", c.Combo == 0 && Mathf.Abs(c.Speed - Mathf.Max(15f, before - 10f)) < 0.02f);
 
                 // No press until 100.
                 c.ResetGame();
@@ -66,7 +66,7 @@ namespace CompanyF.Gameplay.EditorTools
                 p = c.CurrentPlayer;
                 float t = 0f;
                 while (c.CurrentPlayer == p) { c.Tick(Dt, false); t += Dt; }
-                Check($"no press: miss after {t:0.00}s (cycle 2.5s), speed {c.Speed:0.00} == 100 - 30 - idle decay", Mathf.Abs(t - 2.5f) < 0.02f && Mathf.Abs(c.Speed - (70f - 0.15f * t)) < 0.01f);
+                Check($"no press: miss after {t:0.00}s (cycle 2.5s), speed {c.Speed:0.00} == 100 - 10 - idle decay", Mathf.Abs(t - 2.5f) < 0.02f && Mathf.Abs(c.Speed - (90f - 0.15f * t)) < 0.01f);
 
                 // Floor: a miss at min speed stays at 15.
                 c.startSpeed = 15f; c.ResetGame();
@@ -84,7 +84,7 @@ namespace CompanyF.Gameplay.EditorTools
                 before = c.Speed;
                 float waited = 0f;
                 while (c.Combo > 0) { c.Tick(Dt, false); waited += Dt; }
-                Check($"combo timeout after {waited:0.00}s (expect 3): speed {before} -> {c.Speed} (-30)", Mathf.Abs(waited - 3f) < 0.02f && Mathf.Abs(c.Speed - (before - 30f)) < 0.01f);
+                Check($"combo timeout after {waited:0.00}s (expect 3): speed {before} -> {c.Speed} (-30)", Mathf.Abs(waited - 3f) < 0.02f && Mathf.Abs(c.Speed - Mathf.Max(15f, before - 30f)) < 0.01f);
 
                 // Gears: 15-60 / 60-105 / 105-150.
                 c.gearCount = 3; c.cycleTime = 2.5f; c.startSpeed = 15f; c.ResetGame();
@@ -140,6 +140,7 @@ namespace CompanyF.Gameplay.EditorTools
                 Object.DestroyImmediate(go);
             }
 
+            log.Sort((a, b) => a.StartsWith("FAIL").CompareTo(b.StartsWith("FAIL")) * -1);  // failures first
             Debug.Log($"[SpeedRange SelfTest] {(failures == 0 ? "ALL PASSED" : failures + " FAILED")}\n" + string.Join("\n", log));
         }
 

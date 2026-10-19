@@ -4,7 +4,7 @@ using UnityEngine.UI;
 namespace CompanyF.Scoring
 {
     /// <summary>
-    /// Placeholder results screen: grey-white veil with distance and score, shown when the game ends.
+    /// Results screen: full-screen background picture with distance and score, shown when the game ends.
     /// On overheat a title line is shown above them.
     /// </summary>
     public class ResultUI : MonoBehaviour
