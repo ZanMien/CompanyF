@@ -5,17 +5,19 @@ using UnityEngine.InputSystem;
 namespace CompanyF.Gameplay
 {
     /// <summary>
-    /// Hold/press controls that work at any time, independent of whose turn it is on the speed bar.
-    /// P1: shift up, brake. P2: cool the boiler, whistle.
+    /// Hold controls kept for later use: P1 brake (S), P2 whistle (↑) and cooling (↓).
+    /// Input is switched off for now (<see cref="inputEnabled"/>). Braking has no effect yet,
+    /// since the speed currently follows the boiler temperature.
     /// </summary>
     public class TrainControls : MonoBehaviour
     {
-        [SerializeField] SpeedRangeController speedRange;
         [SerializeField] BoilerTemperature boiler;
         [SerializeField] TrainFollower train;
 
+        [Tooltip("Off for now: S / ↑ / ↓ do nothing until these controls are used again.")]
+        public bool inputEnabled = false;
+
         [Header("P1")]
-        public Key shiftUpKey = Key.W;
         public Key brakeKey = Key.S;
 
         [Header("P2")]
@@ -32,7 +34,6 @@ namespace CompanyF.Gameplay
 
         void Start()
         {
-            if (speedRange == null) speedRange = FindFirstObjectByType<SpeedRangeController>();
             if (boiler == null) boiler = FindFirstObjectByType<BoilerTemperature>();
             if (train == null) train = FindFirstObjectByType<TrainFollower>();
         }
@@ -40,16 +41,12 @@ namespace CompanyF.Gameplay
         void Update()
         {
             var keyboard = Keyboard.current;
-            bool active = keyboard != null && (train == null || !train.Stopped);
+            bool active = inputEnabled && keyboard != null && (train == null || !train.Stopped);
 
             IsBraking = active && keyboard[brakeKey].isPressed;
             IsCooling = active && keyboard[coolKey].isPressed;
             IsWhistling = active && keyboard[whistleKey].isPressed;
 
-            if (active && speedRange != null && keyboard[shiftUpKey].wasPressedThisFrame && speedRange.TryShiftUp())
-                Debug.Log($"[Gear] シフトアップ → {speedRange.Gear}（上限 {speedRange.GearCap:0}）", this);
-
-            if (IsBraking && speedRange != null) speedRange.Brake(Time.deltaTime);
             if (IsCooling && boiler != null) boiler.Cool(Time.deltaTime);
             UpdateWhistle();
         }
