@@ -7,17 +7,32 @@ namespace CompanyF.Gameplay
 {
     public enum DoorState { Closed, Opening, Open, Loading, Closing }
 
+    /// <summary>What the shovel is currently doing.</summary>
+    public enum ShovelAction
+    {
+        None,
+        /// <summary>Coal thrown through the open door; it lands at <see cref="FurnaceController.loadTime"/>.</summary>
+        Throw,
+        /// <summary>P2 pressed while the door was not open: the coal is tipped onto the floor.</summary>
+        FailDoorNotOpen,
+        /// <summary>P1 shut the door before the coal reached the top of its arc: the coal hits the door.</summary>
+        FailBlocked,
+    }
+
     /// <summary>
-    /// Furnace door and coal. P1 opens/closes the door, P2 shovels coal in while it is open.
-    ///   Closed -F-> Opening -> Open -F-> Closing -> Closed
-    ///   Open -Enter-> Loading -> (coal: +heat) -> Closing -> Closed
-    /// P2 fails when shovelling at any other time, or when P1's door key and P2's coal key come within
-    /// <see cref="simultaneousWindow"/> of each other (no coal goes in). After a failure P2 is locked out briefly.
-    /// While the door is open (from fully open until fully closed) the boiler loses heat every <see cref="coolInterval"/>.
+    /// Furnace door and coal rules. P1 opens/closes the door, P2 shovels coal.
+    ///   Door: Closed -F-> Opening -> Open -F-> Closing -> Closed (the key does nothing while the door is moving).
+    ///   Open + Enter: throw. The coal lands at <see cref="loadTime"/> (+heat, cooling restarts) and the door stays open.
+    ///   F before <see cref="apexTime"/> of a throw: the door closes and the coal is blocked (P2 failure, no heat).
+    ///   F after <see cref="apexTime"/>: the door closes and the coal still lands.
+    ///   Enter while the door is not open: P2 failure, the coal is tipped out.
+    ///   Enter during any shovel action or during the lockout after a failure: ignored.
+    /// While the door is open (from fully open until fully closed) the boiler loses heat: first after
+    /// <see cref="firstCoolDelay"/>, then every <see cref="repeatCoolInterval"/>. Each coal restarts this timing.
     ///
-    /// Animation hook: <see cref="StateEntered"/> / <see cref="StateExited"/> fire on every change. Timed states
-    /// (Opening, Loading, Closing) end after their time while <see cref="useTimers"/> is on; to drive them from
-    /// animations instead, turn it off and call <see cref="CompleteState"/> when the clip finishes.
+    /// This class only keeps the rules and the clocks. <see cref="FurnaceDoorAnimator"/> and
+    /// <see cref="ShovelAnimator"/> pose the models from <see cref="State"/>, <see cref="StateTime"/>,
+    /// <see cref="Action"/> and <see cref="ActionTime"/>, so animation and rules cannot drift apart.
     /// </summary>
     public class FurnaceController : MonoBehaviour
     {
@@ -26,27 +41,34 @@ namespace CompanyF.Gameplay
         [SerializeField] BoilerTemperature boiler;
         [SerializeField] TrainFollower train;
 
-        [Header("Animation times (s)")]
+        [Header("Door times (s)")]
         [Min(0f)] public float openTime = 0.3f;
-        [Min(0f)] public float loadTime = 0.3f;
         [Min(0f)] public float closeTime = 0.3f;
-        [Tooltip("On: timed states end by themselves. Off: call CompleteState() (e.g. from an animation event).")]
+        [Tooltip("On: the door states end by themselves. Off: call CompleteDoorState() (e.g. from an animation event).")]
         public bool useTimers = true;
 
+        [Header("Shovel times (s, from P2's key press)")]
+        [Tooltip("The coal lands in the furnace at this time.")]
+        [Min(0f)] public float loadTime = 0.5f;
+        [Tooltip("The coal is at the top of its arc. F before this blocks the coal; F after it does not.")]
+        [Min(0f)] public float apexTime = 0.42f;
+        [Tooltip("Length of both failure animations.")]
+        [Min(0f)] public float failAnimationTime = 0.75f;
+
         [Header("Coal")]
-        [Tooltip("Added the moment the coal goes in (end of Loading).")]
+        [Tooltip("Added the moment the coal lands.")]
         [Min(0f)] public float coalHeat = 100f;
 
         [Header("Cooling while the door is open")]
         [Min(0f)] public float coolAmount = 100f;
-        [Tooltip("Every full interval of open door removes coolAmount. A partial interval when the door closes is dropped.")]
-        [Min(0.01f)] public float coolInterval = 1.2f;
+        [Tooltip("Seconds from the door fully opening, or from the last coal landing, to the first cooling.")]
+        [Min(0.01f)] public float firstCoolDelay = 1.2f;
+        [Tooltip("Seconds between coolings after the first. A partial wait when the door closes is dropped.")]
+        [Min(0.01f)] public float repeatCoolInterval = 0.6f;
 
         [Header("P2 failure")]
-        [Tooltip("P1's door key and P2's coal key within this many seconds of each other = P2 failure.")]
-        [Min(0f)] public float simultaneousWindow = 0.3f;
-        [Tooltip("After a failure P2's key does nothing for this long.")]
-        [Min(0f)] public float p2LockoutTime = 0.5f;
+        [Tooltip("After a failure P2's key does nothing for this long, and pressing it does not restart the wait.")]
+        [Min(0f)] public float p2LockoutTime = 0.75f;
 
         [Header("Input")]
         public Key p1DoorKey = Key.F;
@@ -56,9 +78,9 @@ namespace CompanyF.Gameplay
 
         public event Action<DoorState> StateEntered;
         public event Action<DoorState> StateExited;
-        /// <summary>Coal went in: (heat added).</summary>
+        /// <summary>Coal landed: (heat added).</summary>
         public event Action<float> CoalAdded;
-        /// <summary>The open door cooled the boiler: (heat removed).</summary>
+        /// <summary>The open door actually lowered the temperature: (heat removed).</summary>
         public event Action<float> Cooled;
         public event Action P2Failed;
 
@@ -67,10 +89,12 @@ namespace CompanyF.Gameplay
         public float P2LockoutLeft { get; private set; }
         /// <summary>Door counts as open for cooling: from fully open until fully closed.</summary>
         public bool CoolingActive { get; private set; }
+        public ShovelAction Action { get; private set; }
+        /// <summary>Seconds since P2's key press started the current <see cref="Action"/>.</summary>
+        public float ActionTime { get; private set; }
 
-        float clock;
-        float lastDoorPress = float.NegativeInfinity;
         float coolTimer;
+        float nextCoolWait;
 
         void Start()
         {
@@ -91,26 +115,40 @@ namespace CompanyF.Gameplay
         /// <summary>Advances by <paramref name="dt"/> seconds with this frame's key presses.</summary>
         public void Tick(float dt, bool doorPressed, bool coalPressed)
         {
-            clock += dt;
             StateTime += dt;
             P2LockoutLeft = Mathf.Max(0f, P2LockoutLeft - dt);
+            if (Action != ShovelAction.None) ActionTime += dt;
 
             if (CoolingActive)
             {
                 coolTimer += dt;
-                while (coolTimer >= coolInterval - Epsilon)
+                while (coolTimer >= nextCoolWait - Epsilon)
                 {
-                    coolTimer -= coolInterval;
-                    if (boiler != null) boiler.Change(-coolAmount);
-                    Cooled?.Invoke(coolAmount);
+                    coolTimer -= nextCoolWait;
+                    nextCoolWait = repeatCoolInterval;
+                    Cool();
                 }
             }
 
             if (doorPressed) PressDoor();
             if (coalPressed) PressCoal();
 
-            if (useTimers && IsTimed(State) && StateTime >= Duration(State) - Epsilon)
-                CompleteState();
+            AdvanceAction();
+            if (useTimers) AdvanceDoor();
+        }
+
+        void Cool()
+        {
+            if (boiler == null) return;
+            float before = boiler.Temperature;
+            boiler.Change(-coolAmount);
+            if (boiler.Temperature < before) Cooled?.Invoke(before - boiler.Temperature);
+        }
+
+        void RestartCooling()
+        {
+            coolTimer = 0f;
+            nextCoolWait = firstCoolDelay;
         }
 
         void PressDoor()
@@ -118,17 +156,17 @@ namespace CompanyF.Gameplay
             switch (State)
             {
                 case DoorState.Closed:
-                    lastDoorPress = clock;
                     Enter(DoorState.Opening);
                     break;
                 case DoorState.Open:
-                    lastDoorPress = clock;
                     Enter(DoorState.Closing);
                     break;
                 case DoorState.Loading:
-                    // P2 shovelled within the window: no coal, the door closes as P1 asked.
-                    lastDoorPress = clock;
-                    FailP2("P1 closed the door while the coal was going in");
+                    if (ActionTime < apexTime - Epsilon)
+                    {
+                        Action = ShovelAction.FailBlocked;
+                        FailP2("P1 closed the door before the coal passed the top of its arc");
+                    }
                     Enter(DoorState.Closing);
                     break;
                 // Opening / Closing: the door is moving, the key does nothing.
@@ -137,11 +175,19 @@ namespace CompanyF.Gameplay
 
         void PressCoal()
         {
-            if (P2LockoutLeft > 0f) return;
+            if (P2LockoutLeft > 0f || Action != ShovelAction.None) return;
 
-            if (State != DoorState.Open) FailP2($"door is {State}");
-            else if (clock - lastDoorPress < simultaneousWindow - Epsilon) FailP2("pressed together with P1");
-            else Enter(DoorState.Loading);
+            ActionTime = 0f;
+            if (State == DoorState.Open)
+            {
+                Action = ShovelAction.Throw;
+                Enter(DoorState.Loading);
+            }
+            else
+            {
+                Action = ShovelAction.FailDoorNotOpen;
+                FailP2($"door is {State}");
+            }
         }
 
         void FailP2(string reason)
@@ -151,24 +197,38 @@ namespace CompanyF.Gameplay
             P2Failed?.Invoke();
         }
 
-        /// <summary>Ends the current timed state (Opening, Loading, Closing). Call from animations when not using timers.</summary>
-        public void CompleteState()
+        void AdvanceAction()
         {
-            switch (State)
+            switch (Action)
             {
-                case DoorState.Opening:
-                    Enter(DoorState.Open);
-                    break;
-                case DoorState.Loading:
+                case ShovelAction.Throw:
+                    if (ActionTime < loadTime - Epsilon) return;
+                    Action = ShovelAction.None;
                     if (boiler != null) boiler.Change(coalHeat);
                     Debug.Log($"[Furnace] 石炭投入 +{coalHeat:0}°C → {(boiler != null ? boiler.Temperature : 0f):0}°C", this);
                     CoalAdded?.Invoke(coalHeat);
-                    Enter(DoorState.Closing);
+                    RestartCooling();
+                    if (State == DoorState.Loading) Enter(DoorState.Open);
                     break;
-                case DoorState.Closing:
-                    Enter(DoorState.Closed);
+                case ShovelAction.FailDoorNotOpen:
+                case ShovelAction.FailBlocked:
+                    if (ActionTime >= failAnimationTime - Epsilon) Action = ShovelAction.None;
                     break;
             }
+        }
+
+        void AdvanceDoor()
+        {
+            if ((State == DoorState.Opening && StateTime >= openTime - Epsilon)
+                || (State == DoorState.Closing && StateTime >= closeTime - Epsilon))
+                CompleteDoorState();
+        }
+
+        /// <summary>Ends Opening or Closing. Called by the timers, or by an animation when <see cref="useTimers"/> is off.</summary>
+        public void CompleteDoorState()
+        {
+            if (State == DoorState.Opening) Enter(DoorState.Open);
+            else if (State == DoorState.Closing) Enter(DoorState.Closed);
         }
 
         void Enter(DoorState next)
@@ -181,19 +241,14 @@ namespace CompanyF.Gameplay
             if (next == DoorState.Open && previous == DoorState.Opening)
             {
                 CoolingActive = true;
-                coolTimer = 0f;
+                RestartCooling();
             }
             else if (next == DoorState.Closed)
             {
                 CoolingActive = false;
-                coolTimer = 0f;
             }
 
             StateEntered?.Invoke(next);
         }
-
-        static bool IsTimed(DoorState s) => s == DoorState.Opening || s == DoorState.Loading || s == DoorState.Closing;
-
-        float Duration(DoorState s) => s == DoorState.Opening ? openTime : s == DoorState.Loading ? loadTime : closeTime;
     }
 }

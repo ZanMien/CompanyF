@@ -6,8 +6,8 @@ namespace CompanyF.Gameplay.EditorTools
 {
     /// <summary>
     /// Runs the furnace rules on temporary objects with simulated key presses and logs PASS/FAIL (failures first):
-    /// door states and timing, coal, cooling, P2 failures and lockout, simultaneous presses, overheat,
-    /// temperature-to-speed mapping and the animation hook.
+    /// door states and timing, coal throw, both failures and the lockout, cooling, overheat and the
+    /// temperature-to-speed mapping.
     /// </summary>
     public static class FurnaceSelfTest
     {
@@ -44,98 +44,155 @@ namespace CompanyF.Gameplay.EditorTools
                 furnace.CoalAdded += _ => coals++;
                 furnace.Cooled += _ => cools++;
 
-                void Run(float seconds, bool door = false, bool coal = false)
+                // Press on the first tick, then idle: `ticks` ticks in total.
+                void Run(int ticks, bool door = false, bool coal = false)
                 {
                     furnace.Tick(Dt, door, coal);
-                    for (float t = Dt; t < seconds - 1e-4f; t += Dt) furnace.Tick(Dt, false, false);
+                    for (int i = 1; i < ticks; i++) furnace.Tick(Dt, false, false);
+                }
+
+                void Close() { if (furnace.State == DoorState.Open) Run(31, door: true); }
+                void Open() { if (furnace.State == DoorState.Closed) Run(31, door: true); }
+                void Reset(float temperature)
+                {
+                    Run(100);
+                    Close();
+                    boiler.Change(temperature - boiler.Temperature);
+                    fails = coals = cools = 0;
                 }
 
                 Check($"start: {furnace.State}, {boiler.Temperature} °C, {speed.DisplaySpeed} km/h", furnace.State == DoorState.Closed && Mathf.Approximately(boiler.Temperature, 50f) && Mathf.Approximately(speed.DisplaySpeed, 15f));
 
-                // Opening takes 0.3 s; F during it does nothing.
-                Run(0.1f, door: true);
+                // Door timing; F does nothing while the door moves.
+                Run(10, door: true);
                 Check($"F: {furnace.State}", furnace.State == DoorState.Opening);
-                Run(0.1f, door: true);
+                Run(10, door: true);
                 Check($"F while opening ignored: {furnace.State}", furnace.State == DoorState.Opening);
-                Run(0.11f);
+                Run(11);
                 Check($"open after 0.3 s: {furnace.State}", furnace.State == DoorState.Open);
 
-                // Coal: Loading 0.3 s, +100 at the end, then auto close 0.3 s. Open for 0.6 s < 1.2 s: no cooling.
-                Run(0.15f, coal: true);
-                Check($"Enter while open: {furnace.State}, still {boiler.Temperature} °C", furnace.State == DoorState.Loading && Mathf.Approximately(boiler.Temperature, 50f));
-                Run(0.16f);
-                Check($"coal in: {boiler.Temperature} °C (expect 150), {furnace.State}", Mathf.Approximately(boiler.Temperature, 150f) && furnace.State == DoorState.Closing && coals == 1);
-                Run(0.3f);
-                Check($"auto closed: {furnace.State}, no cooling ({cools})", furnace.State == DoorState.Closed && cools == 0);
+                // Successful throw: 0.5 s, +100 at the end, door stays open.
+                Run(49, coal: true);
+                Check($"0.49 s into a throw: {furnace.State}, {furnace.Action}, still {boiler.Temperature}", furnace.State == DoorState.Loading && furnace.Action == ShovelAction.Throw && Mathf.Approximately(boiler.Temperature, 50f));
+                Run(2);
+                Check($"coal lands at 0.5 s: {boiler.Temperature} (expect 150), door {furnace.State}, action {furnace.Action}", Mathf.Approximately(boiler.Temperature, 150f) && furnace.State == DoorState.Open && furnace.Action == ShovelAction.None && coals == 1);
 
-                // Load to 350, then keep the door open 2.5 s: cools at 1.2 s and 2.4 s; closing 0.3 s more (2.8 s total) adds none.
-                for (int i = 0; i < 2; i++) LoadCoal(furnace);
-                Check($"two more coals: {boiler.Temperature} (expect 350)", Mathf.Approximately(boiler.Temperature, 350f));
-                cools = 0;
-                Run(0.31f, door: true);
-                Run(2.5f);
-                Check($"open 2.5 s: cooled {cools}x, {boiler.Temperature} °C (expect 2x, 150)", cools == 2 && Mathf.Approximately(boiler.Temperature, 150f));
-                Run(0.31f, door: true);
-                Check($"closed: {furnace.State}, partial interval dropped ({cools}x)", furnace.State == DoorState.Closed && cools == 2);
-                Run(3f);
-                Check($"door closed for 3 s: still {boiler.Temperature} °C", Mathf.Approximately(boiler.Temperature, 150f));
-
-                // P2 failure while closed, 0.5 s lockout: presses during it do nothing and do not restart it.
+                // Enter during a throw is ignored, not a failure; repeat throws work.
                 fails = 0;
-                Run(0.2f, coal: true);
-                Check($"Enter while closed: fail ({fails}), lockout {furnace.P2LockoutLeft:0.00}", fails == 1 && furnace.P2LockoutLeft > 0f);
-                Run(0.2f, coal: true);
-                Check($"Enter during lockout ignored (fails {fails}, lockout left {furnace.P2LockoutLeft:0.00} not reset)", fails == 1 && furnace.P2LockoutLeft < 0.15f);
-                Run(0.15f);
-                Check($"lockout over after 0.5 s ({furnace.P2LockoutLeft})", furnace.P2LockoutLeft <= 0f);
+                Run(20, coal: true);
+                Run(20, coal: true);
+                Check($"Enter during a throw ignored: fails {fails}, action time {furnace.ActionTime:0.00} not restarted", fails == 0 && furnace.Action == ShovelAction.Throw && furnace.ActionTime > 0.35f);
+                Run(12);
+                Check($"second coal: {boiler.Temperature} (expect 250), {furnace.State}", Mathf.Approximately(boiler.Temperature, 250f) && furnace.State == DoorState.Open);
+                Run(51, coal: true);
+                Check($"third coal: {boiler.Temperature} (expect 350), no cooling ({cools})", Mathf.Approximately(boiler.Temperature, 350f) && cools == 0);
 
-                // Enter during Opening / Closing fails too.
-                fails = 0;
-                Run(0.1f, door: true);
-                Run(0.6f, coal: true);
-                Check($"Enter while opening: fail ({fails})", fails == 1);
+                // Cooling: first at 1.2 s after the landing, then every 0.6 s.
+                Run(110);
+                Check($"1.11 s after landing: no cooling ({cools}x)", cools == 0 && Mathf.Approximately(boiler.Temperature, 350f));
+                Run(10);
+                Check($"1.2 s: first cooling ({cools}x, {boiler.Temperature}, expect 250)", cools == 1 && Mathf.Approximately(boiler.Temperature, 250f));
+                Run(58);
+                Check($"just before 1.8 s: no second cooling ({cools}x)", cools == 1);
+                Run(2);
+                Check($"1.8 s: second cooling ({cools}x, {boiler.Temperature}, expect 150)", cools == 2 && Mathf.Approximately(boiler.Temperature, 150f));
+                Run(60);
+                Check($"2.4 s: third cooling ({cools}x, {boiler.Temperature}, expect 50)", cools == 3 && Mathf.Approximately(boiler.Temperature, 50f));
+                Run(60);
+                Check($"at the 50 °C floor no cooling is reported ({cools}x)", cools == 3);
 
-                // Simultaneous: P2 first, P1 within 0.3 s -> no coal, door closes, P2 fails.
-                fails = 0;
-                float before = boiler.Temperature;
-                Run(0.1f, coal: true);
-                Run(0.2f, door: true);
-                Check($"P2 then P1 within 0.3 s: fail ({fails}), {furnace.State}", fails == 1 && furnace.State == DoorState.Closing);
-                Run(0.6f);
-                Check($"... no coal: {boiler.Temperature} == {before}, door {furnace.State}", Mathf.Approximately(boiler.Temperature, before) && furnace.State == DoorState.Closed);
+                // A landing part-way through the wait restarts the full 1.2 s.
+                Reset(350f);
+                Open();
+                Run(60);
+                Run(51, coal: true);  // lands at about 1.1 s after opening
+                Check($"landing before the first cooling: {boiler.Temperature} (expect 450), {cools}x", Mathf.Approximately(boiler.Temperature, 450f) && cools == 0);
+                Run(110);
+                Check($"1.1 s after that landing: no cooling ({cools}x)", cools == 0);
+                Run(10);
+                Check($"1.2 s after that landing: cooled ({cools}x, {boiler.Temperature}, expect 350)", cools == 1 && Mathf.Approximately(boiler.Temperature, 350f));
 
-                // Simultaneous: P1 first (closing), P2 within 0.3 s -> fail, door keeps closing.
-                Run(0.31f, door: true);  // open
-                fails = 0;
-                before = boiler.Temperature;
-                Run(0.1f, door: true);
-                Run(0.5f, coal: true);
-                Check($"P1 then P2 within 0.3 s: fail ({fails}), {furnace.State}, {boiler.Temperature} == {before}", fails == 1 && furnace.State == DoorState.Closed && Mathf.Approximately(boiler.Temperature, before));
+                // Closed door: nothing changes; a partial wait is dropped; cooling counts until fully closed.
+                Reset(350f);
+                Open();
+                Run(100);
+                Run(31, door: true);  // 1.0 s + the 0.3 s close passes 1.2 s
+                Check($"cooling due while closing still counts ({cools}x, {boiler.Temperature}, expect 250), {furnace.State}", cools == 1 && Mathf.Approximately(boiler.Temperature, 250f) && furnace.State == DoorState.Closed);
+                Run(300);
+                Check($"door closed 3 s: still {boiler.Temperature}", Mathf.Approximately(boiler.Temperature, 250f));
 
-                // Temperature -> speed: 750 °C -> 85 km/h, train 82.5; 1450 °C -> 155 km/h, train 150.
+                // Failure A: Enter while the door is not open.
+                foreach (var state in new[] { DoorState.Closed, DoorState.Opening, DoorState.Closing })
+                {
+                    Reset(250f);
+                    if (state == DoorState.Opening) Run(5, door: true);
+                    if (state == DoorState.Closing) { Open(); Run(5, door: true); }
+                    var seen = furnace.State;
+                    Run(10, coal: true);
+                    Check($"Enter while {seen}: fail ({fails}), action {furnace.Action}, no heat ({boiler.Temperature})",
+                          seen == state && fails == 1 && furnace.Action == ShovelAction.FailDoorNotOpen && Mathf.Approximately(boiler.Temperature, 250f));
+                }
+
+                // Lockout 0.75 s: presses during it do nothing and do not restart it, whatever the door does.
+                Reset(250f);
+                Run(40, coal: true);
+                Run(30, coal: true);
+                Check($"Enter during lockout ignored: fails {fails}, left {furnace.P2LockoutLeft:0.00}", fails == 1 && furnace.P2LockoutLeft < 0.07f && furnace.P2LockoutLeft > 0f);
+                Check($"animation still running at 0.70 s ({furnace.Action})", furnace.Action == ShovelAction.FailDoorNotOpen);
+                Run(7);
+                Check($"at 0.76 s: lockout over ({furnace.P2LockoutLeft}), action {furnace.Action}", furnace.P2LockoutLeft <= 0f && furnace.Action == ShovelAction.None);
+                Run(5, coal: true);
+                Check($"Enter after the lockout fails again ({fails})", fails == 2);
+
+                // Failure B: F before the top of the arc.
+                Reset(250f);
+                Open();
+                Run(30, coal: true);
+                Run(5, door: true);
+                Check($"F at 0.30 s: fail ({fails}), door {furnace.State}, action {furnace.Action}", fails == 1 && furnace.State == DoorState.Closing && furnace.Action == ShovelAction.FailBlocked);
+                Run(30);
+                Check($"door closes on time: {furnace.State}", furnace.State == DoorState.Closed);
+                Check($"blocked animation runs on ({furnace.Action}, {furnace.ActionTime:0.00} s)", furnace.Action == ShovelAction.FailBlocked);
+                Run(20);
+                Check($"animation ends by 0.75 s ({furnace.Action}), no heat ({boiler.Temperature}), no coal ({coals})", furnace.Action == ShovelAction.None && Mathf.Approximately(boiler.Temperature, 250f) && coals == 0);
+
+                // F just before the top still fails; F after it succeeds and the door closes at once.
+                Reset(250f);
+                Open();
+                Run(40, coal: true);
+                Run(1, door: true);
+                Check($"F at 0.41 s: blocked (fails {fails})", fails == 1 && furnace.Action == ShovelAction.FailBlocked);
+
+                Reset(250f);
+                Open();
+                Run(44, coal: true);
+                Run(1, door: true);
+                Check($"F at 0.45 s: no failure ({fails}), door {furnace.State} at once, action {furnace.Action}", fails == 0 && furnace.State == DoorState.Closing && furnace.Action == ShovelAction.Throw);
+                Run(7);
+                Check($"... coal still lands: {boiler.Temperature} (expect 350), door {furnace.State}", Mathf.Approximately(boiler.Temperature, 350f) && furnace.State == DoorState.Closing && coals == 1);
+                Run(30);
+                Check($"... door closes: {furnace.State}", furnace.State == DoorState.Closed);
+
+                // Failure B does not restart the cooling timer.
+                Reset(350f);
+                Open();
+                Run(80);
+                Run(10, coal: true);
+                Run(40, door: true);  // 0.8 + 0.1 + 0.3 (door closed at 1.2 s): cooling is due as it closes
+                Check($"blocked coal keeps the cooling timer ({cools}x, {boiler.Temperature})", cools == 1 && Mathf.Approximately(boiler.Temperature, 250f));
+
+                // Temperature -> speed.
                 Check($"750 °C -> {speed.DisplayFor(750f)} km/h, train {speed.TrainSpeedFor(speed.DisplayFor(750f))}",
                       Mathf.Approximately(speed.DisplayFor(750f), 85f) && Mathf.Approximately(speed.TrainSpeedFor(85f), 82.5f));
                 Check($"1450 °C -> {speed.DisplayFor(1450f)} km/h, train {speed.TrainSpeedFor(155f)}",
                       Mathf.Approximately(speed.DisplayFor(1450f), 155f) && Mathf.Approximately(speed.TrainSpeedFor(155f), 150f));
 
                 // Overheat at 1500 or more.
-                while (boiler.Temperature < 1450f - 1f) LoadCoal(furnace);
+                Reset(1450f);
                 Check($"at {boiler.Temperature} °C not overheated", !boiler.Overheated);
-                LoadCoal(furnace);
+                Open();
+                Run(51, coal: true);
                 Check($"coal to {boiler.Temperature} °C: overheated", boiler.Overheated);
-
-                // Animation hook: with timers off, states wait for CompleteState().
-                var hook = new GameObject("_FurnaceHook") { hideFlags = HideFlags.HideAndDontSave }.AddComponent<FurnaceController>();
-                hook.useTimers = false;
-                var entered = new List<DoorState>();
-                hook.StateEntered += s => entered.Add(s);
-                hook.Tick(Dt, true, false);
-                for (int i = 0; i < 100; i++) hook.Tick(Dt, false, false);
-                bool waited = hook.State == DoorState.Opening;
-                hook.CompleteState();
-                Check($"timers off: waited in Opening ({waited}), CompleteState -> {hook.State}; entered {string.Join(",", entered)}",
-                      waited && hook.State == DoorState.Open && string.Join(",", entered) == "Opening,Open");
-                Object.DestroyImmediate(hook.gameObject);
             }
             finally
             {
@@ -144,15 +201,6 @@ namespace CompanyF.Gameplay.EditorTools
 
             log.Sort((a, b) => b.StartsWith("FAIL").CompareTo(a.StartsWith("FAIL")));
             Debug.Log($"[Furnace SelfTest] {(failures == 0 ? "ALL PASSED" : failures + " FAILED")}\n" + string.Join("\n", log));
-        }
-
-        /// <summary>Open, shovel, let it close by itself: one coal, the door open less than one cooling interval.</summary>
-        static void LoadCoal(FurnaceController f)
-        {
-            f.Tick(Dt, true, false);
-            for (int i = 0; i < 31; i++) f.Tick(Dt, false, false);
-            f.Tick(Dt, false, true);
-            for (int i = 0; i < 70; i++) f.Tick(Dt, false, false);
         }
     }
 }
