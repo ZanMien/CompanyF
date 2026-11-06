@@ -48,12 +48,38 @@ namespace CompanyF.Train
             get
             {
                 if (segments.Count == 0) return 0f;
-                if (routeLength <= 0f)
-                    for (var segment = route.start; segment != null; segment = segment.next)
-                        routeLength += segment.Length;
-                float startNose = rearBumper + frontBumper;
-                return Mathf.Clamp01((distance + frontBumper - startNose) / (routeLength - startNose));
+                return ProgressAtNose(distance + frontBumper);
             }
+        }
+
+        /// <summary>The same measure for a place in the world: the progress the train has when its nose is level with it.</summary>
+        public float RouteProgressAt(Vector3 worldPoint)
+        {
+            if (route == null || route.start == null) return 0f;
+
+            float before = 0f, closest = float.MaxValue, nose = 0f;
+            for (var segment = route.start; segment != null; segment = segment.next)
+            {
+                float along = segment.DistanceAlong(worldPoint);
+                segment.Evaluate(along, out var point, out _);
+                float gap = (point - worldPoint).sqrMagnitude;
+                if (gap < closest)
+                {
+                    closest = gap;
+                    nose = before + along;
+                }
+                before += segment.Length;
+            }
+            return ProgressAtNose(nose);
+        }
+
+        float ProgressAtNose(float nose)
+        {
+            if (routeLength <= 0f)
+                for (var segment = route.start; segment != null; segment = segment.next)
+                    routeLength += segment.Length;
+            float startNose = rearBumper + frontBumper;
+            return Mathf.Clamp01((nose - startNose) / (routeLength - startNose));
         }
         public bool Arrived { get; private set; }
         /// <summary>Stopped early by <see cref="Halt"/> (e.g. game over).</summary>

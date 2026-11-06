@@ -44,7 +44,7 @@ namespace CompanyF.Gameplay.EditorTools
             herd.FindProperty("trainCollider").objectReferenceValue = train.transform.Find("Steam_Locomotive").GetComponent<Collider>();
             herd.ApplyModifiedProperties();
 
-            BuildUi(flow, train.GetComponent<TrainFollower>());
+            BuildUi(flow, train.GetComponent<TrainFollower>(), train.GetComponent<AnimalHerd>(), train.GetComponent<TrainControls>());
 
             var result = new SerializedObject(Object.FindFirstObjectByType<GameResultUI>());
             result.FindProperty("flow").objectReferenceValue = flow;
@@ -92,7 +92,7 @@ namespace CompanyF.Gameplay.EditorTools
             box.size = local.size;
         }
 
-        static void BuildUi(GameFlow flow, TrainFollower train)
+        static void BuildUi(GameFlow flow, TrainFollower train, AnimalHerd herd, TrainControls controls)
         {
             var canvas = GameObject.Find("HUDCanvas");
             if (canvas == null) { Debug.LogError("[GameFlow] No HUDCanvas in the scene."); return; }
@@ -127,6 +127,10 @@ namespace CompanyF.Gameplay.EditorTools
             var marker = NewImage(line, "Marker", knob, new Color(1f, 0.55f, 0.1f));
             Place(marker, new Vector2(0f, 0.5f), Vector2.zero, new Vector2(18f, 18f));
 
+            var whistle = NewText(root, "WhistleText", font, "汽笛：OK", 40);
+            whistle.alignment = TextAnchor.MiddleLeft;
+            Place(whistle.rectTransform, new Vector2(0f, 1f), new Vector2(240f, -50f), new Vector2(400f, 60f));
+
             var ui = canvas.AddComponent<GameFlowUI>();
             Undo.RegisterCreatedObjectUndo(ui, "Setup Game Flow");
             var so = new SerializedObject(ui);
@@ -135,6 +139,9 @@ namespace CompanyF.Gameplay.EditorTools
             so.FindProperty("messageText").objectReferenceValue = message;
             so.FindProperty("timerText").objectReferenceValue = timer;
             so.FindProperty("progressMarker").objectReferenceValue = marker;
+            so.FindProperty("herd").objectReferenceValue = herd;
+            so.FindProperty("controls").objectReferenceValue = controls;
+            so.FindProperty("whistleText").objectReferenceValue = whistle;
             so.ApplyModifiedProperties();
         }
 
@@ -217,6 +224,47 @@ namespace CompanyF.Gameplay.EditorTools
                 trainBox.center = new Vector3(0f, 1f, 100f);
                 herd.CheckCollisions(trainBox, false);
                 Check($"touching without the whistle: failure ({struck}), animal stays ({second.state})", struck == 1 && second.state != AnimalHerd.AnimalState.Gone);
+
+                // The whistle's time limit and cooldown.
+                var controls = root.AddComponent<TrainControls>();
+                var ringSource = root.AddComponent<WhistleWaves>();
+                ringSource.expandTime = 100f;  // rings outlive the blast, so counting them counts emissions
+                int rings = 0;
+                void Whistle(int ticks, bool held)
+                {
+                    for (int i = 0; i < ticks; i++)
+                    {
+                        controls.TickWhistle(Dt, held);
+                        ringSource.Tick(Dt, controls.IsWhistling);
+                        rings = ringSource.ActiveRadii.Count;
+                    }
+                }
+                Whistle(1, false);
+                Check($"key up: ready ({controls.Whistle})", controls.Whistle == TrainControls.WhistleState.Ready);
+                Whistle(1, true);
+                Check($"press: sounds, first ring ({controls.Whistle}, {rings})", controls.IsWhistling && rings == 1);
+                Whistle(98, true);
+                Check($"0.98 s held: still sounding, 2 rings ({controls.Whistle}, {rings})", controls.IsWhistling && rings == 2);
+                Whistle(2, true);
+                Check($"1 s held: stops by itself, cooldown about 5 s ({controls.Whistle}, {controls.WhistleCooldownLeft})", controls.Whistle == TrainControls.WhistleState.Cooldown && controls.WhistleCooldownLeft > 4.98f);
+                Whistle(400, true);
+                Check($"key still held at 4 s of cooldown: cooling ({controls.Whistle}), never more than 2 rings ({rings})", controls.Whistle == TrainControls.WhistleState.Cooldown && rings == 2);
+                Whistle(102, true);
+                Check($"cooldown over, key still held: no blast ({controls.Whistle})", controls.Whistle == TrainControls.WhistleState.Ready);
+                Whistle(50, true);
+                Check($"held on: still no blast ({controls.Whistle})", controls.Whistle == TrainControls.WhistleState.Ready);
+                Whistle(1, false);
+                Whistle(1, true);
+                Check($"release and press again: sounds ({controls.Whistle})", controls.IsWhistling);
+                Whistle(30, true);
+                Whistle(1, false);
+                Check($"released early: cooldown 5 s ({controls.Whistle}, {controls.WhistleCooldownLeft})", controls.Whistle == TrainControls.WhistleState.Cooldown && Mathf.Approximately(controls.WhistleCooldownLeft, 5f));
+                Whistle(100, false);
+                Whistle(10, true);
+                Whistle(10, false);
+                Check($"press during cooldown: nothing ({controls.Whistle}, {controls.WhistleCooldownLeft:F2} left)", controls.Whistle == TrainControls.WhistleState.Cooldown && Mathf.Abs(controls.WhistleCooldownLeft - 3.8f) < 0.02f);
+                Whistle(400, true);
+                Check($"pressed during cooldown and held past its end: no blast ({controls.Whistle})", controls.Whistle == TrainControls.WhistleState.Ready);
             }
             finally
             {
