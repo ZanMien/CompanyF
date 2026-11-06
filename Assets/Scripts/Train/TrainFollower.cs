@@ -38,6 +38,8 @@ namespace CompanyF.Train
         float distance;
 
         public float Distance => distance;
+        /// <summary>World position of the front of the locomotive.</summary>
+        public Vector3 NosePosition => transform.TransformPoint(0f, 0f, frontBumper);
         public bool Arrived { get; private set; }
         /// <summary>Stopped early by <see cref="Halt"/> (e.g. game over).</summary>
         public bool Halted { get; private set; }

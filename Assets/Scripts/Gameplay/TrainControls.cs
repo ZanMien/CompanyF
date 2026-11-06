@@ -5,8 +5,8 @@ using UnityEngine.InputSystem;
 namespace CompanyF.Gameplay
 {
     /// <summary>
-    /// Hold controls kept for later use: P1 brake (S), P2 whistle (↑) and cooling (↓).
-    /// Input is switched off for now (<see cref="inputEnabled"/>). Braking has no effect yet,
+    /// Hold controls that work at any time. P1's whistle is live; P1's brake (S) and P2's cooling (↓) are kept for later
+    /// and stay off until <see cref="otherInputEnabled"/> is turned on. Braking has no effect yet,
     /// since the speed currently follows the boiler temperature.
     /// </summary>
     public class TrainControls : MonoBehaviour
@@ -14,18 +14,18 @@ namespace CompanyF.Gameplay
         [SerializeField] BoilerTemperature boiler;
         [SerializeField] TrainFollower train;
 
-        [Tooltip("Off for now: S / ↑ / ↓ do nothing until these controls are used again.")]
-        public bool inputEnabled = false;
+        [Tooltip("Off for now: S and ↓ do nothing until these controls are used again. The whistle always works.")]
+        public bool otherInputEnabled = false;
 
         [Header("P1")]
+        public Key whistleKey = Key.W;
         public Key brakeKey = Key.S;
 
         [Header("P2")]
-        public Key whistleKey = Key.UpArrow;
         public Key coolKey = Key.DownArrow;
 
         [Header("Whistle")]
-        [Tooltip("Plays (looped) while the whistle key is held. Assign the clip later.")]
+        [Tooltip("Plays (looped) while the whistle key is held. Works without a clip; assign one later.")]
         public AudioSource whistle;
 
         public bool IsBraking { get; private set; }
@@ -41,11 +41,11 @@ namespace CompanyF.Gameplay
         void Update()
         {
             var keyboard = Keyboard.current;
-            bool active = inputEnabled && keyboard != null && (train == null || !train.Stopped);
+            bool running = keyboard != null && (train == null || !train.Stopped);
 
-            IsBraking = active && keyboard[brakeKey].isPressed;
-            IsCooling = active && keyboard[coolKey].isPressed;
-            IsWhistling = active && keyboard[whistleKey].isPressed;
+            IsWhistling = running && keyboard[whistleKey].isPressed;
+            IsBraking = running && otherInputEnabled && keyboard[brakeKey].isPressed;
+            IsCooling = running && otherInputEnabled && keyboard[coolKey].isPressed;
 
             if (IsCooling && boiler != null) boiler.Cool(Time.deltaTime);
             UpdateWhistle();

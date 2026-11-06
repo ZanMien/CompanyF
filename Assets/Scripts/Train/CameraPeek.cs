@@ -71,6 +71,16 @@ namespace CompanyF.Train
         }
 
         /// <summary>
+        /// The view frustum at point 2, wherever the camera is right now. <paramref name="planes"/> must hold 6.
+        /// </summary>
+        public void GetPoint2ViewPlanes(Plane[] planes)
+        {
+            var projection = Matrix4x4.Perspective(point2FieldOfView, peekCamera.aspect, peekCamera.nearClipPlane, peekCamera.farClipPlane);
+            var view = Matrix4x4.Scale(new Vector3(1f, 1f, -1f)) * point2.worldToLocalMatrix;
+            GeometryUtility.CalculateFrustumPlanes(projection * view, planes);
+        }
+
+        /// <summary>
         /// Local position along the path (0 = point 1, 1 = point 2). With a <see cref="viaPoint"/> the path is one
         /// smooth curve that passes through it halfway; without one it is a straight line.
         /// </summary>
