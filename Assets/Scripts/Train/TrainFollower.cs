@@ -24,11 +24,25 @@ namespace CompanyF.Train
         /// <summary>Raised once when the nose reaches the end of the line (after the last <see cref="PieceExited"/>).</summary>
         public event Action ReachedEnd;
 
+        /// <summary>Raised once, <see cref="fallTime"/> after the train runs off a line that ends in a chasm.</summary>
+        public event Action Fell;
+
+        /// <summary>Raised once when the train hits something on the line (see <see cref="Crash"/>).</summary>
+        public event Action Crashed;
+
         [Header("Locomotive geometry (m from the model pivot, along the track)")]
         [SerializeField] float frontAxle = 4.34f;
         [SerializeField] float rearAxle = 2.14f;
         [SerializeField] float frontBumper = 6.01f;
         [SerializeField] float rearBumper = 5.41f;
+
+        [Header("Falling into a chasm")]
+        [Tooltip("Seconds of falling before Fell is raised.")]
+        [Min(0f)] public float fallTime = 1.5f;
+        [Tooltip("Leaves the rail end at least this fast (m/s), so a slow train still clears the edge.")]
+        [Min(0f)] public float minFallSpeed = 6f;
+        [Tooltip("How fast the nose tips down (degrees per second).")]
+        [Min(0f)] public float tipSpeed = 45f;
 
         // Segments actually travelled, with the route distance at which each one starts.
         readonly List<TrackSegment> segments = new List<TrackSegment>();
@@ -36,6 +50,9 @@ namespace CompanyF.Train
         readonly HashSet<Transform> exitedPieces = new HashSet<Transform>();
         float endOfLine = -1f;
         float distance;
+        bool fellRaised;
+        float fallClock;
+        Vector3 fallVelocity;
 
         public float Distance => distance;
         public bool Arrived { get; private set; }
@@ -43,12 +60,39 @@ namespace CompanyF.Train
         public bool Halted { get; private set; }
         /// <summary>Not moving any more: reached the end or halted.</summary>
         public bool Stopped => Arrived || Halted;
+        /// <summary>Ran off a line that ends in a chasm.</summary>
+        public bool Falling { get; private set; }
 
         /// <summary>Stops the train where it is; it will not move again.</summary>
         public void Halt() => Halted = true;
+
+        /// <summary>Stops the train and raises <see cref="Crashed"/>. Does nothing once it has stopped.</summary>
+        public void Crash()
+        {
+            if (Stopped) return;
+            Halted = true;
+            Debug.Log("[Train] GAMEOVER：撞到動物", this);
+            Crashed?.Invoke();
+        }
+
+        /// <summary>World position of the front of the locomotive.</summary>
+        public Vector3 NosePosition => transform.TransformPoint(0f, 0f, frontBumper);
         public TrackSegment CurrentSegment => segments.Count > 0 ? segments[SegmentIndexAt(distance)] : null;
 
-        void Start()
+        /// <summary>The junction ahead when the nose is within <paramref name="range"/> metres of it, else null.</summary>
+        public TrackSegment UpcomingJunction(float range)
+        {
+            if (Stopped || segments.Count == 0) return null;
+            int last = segments.Count - 1;
+            var seg = segments[last];
+            if (seg.branch == null) return null;
+            return segmentStart[last] + seg.Length - (distance + frontBumper) <= range ? seg : null;
+        }
+
+        void Start() => Begin();
+
+        /// <summary>Puts the train at the start of the route.</summary>
+        public void Begin()
         {
             if (route == null) route = FindFirstObjectByType<TrackRoute>();
             if (route == null || route.start == null)
@@ -64,10 +108,13 @@ namespace CompanyF.Train
             Advance(0f);
         }
 
-        void Update()
+        void Update() => Tick(Time.deltaTime);
+
+        /// <summary>Advances by <paramref name="dt"/> seconds.</summary>
+        public void Tick(float dt)
         {
-            if (Stopped) return;
-            Advance(speed * Time.deltaTime);
+            if (Falling) Fall(dt);
+            else if (!Stopped) Advance(speed * dt);
         }
 
         void Advance(float step)
@@ -83,14 +130,42 @@ namespace CompanyF.Train
             if (arriving)
             {
                 distance = endOfLine - frontBumper;
-                Arrived = true;
                 Apply();
+                if (segments[segments.Count - 1].endsInChasm)
+                {
+                    StartFall();
+                    return;
+                }
+
+                Arrived = true;
                 Debug.Log("到達終點", this);
                 ReachedEnd?.Invoke();
                 return;
             }
 
             Apply();
+        }
+
+        void StartFall()
+        {
+            Halted = true;
+            Falling = true;
+            fallVelocity = transform.forward * Mathf.Max(speed, minFallSpeed);
+            Debug.Log("[Train] GAMEOVER：掉進峽谷", this);
+        }
+
+        void Fall(float dt)
+        {
+            fallClock += dt;
+            fallVelocity += Physics.gravity * dt;
+            transform.position += fallVelocity * dt;
+            transform.Rotate(tipSpeed * dt, 0f, 0f, Space.Self);
+
+            if (!fellRaised && fallClock >= fallTime)
+            {
+                fellRaised = true;
+                Fell?.Invoke();
+            }
         }
 
         /// <summary>Appends segments until the travelled path covers <paramref name="reach"/>.</summary>
@@ -103,7 +178,7 @@ namespace CompanyF.Train
                 float segEnd = segmentStart[last] + seg.Length;
                 if (reach <= segEnd) return;
 
-                var next = seg.next;
+                var next = seg.Following;
                 if (next == null)
                 {
                     endOfLine = segEnd;

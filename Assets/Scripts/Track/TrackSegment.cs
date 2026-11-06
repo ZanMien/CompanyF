@@ -25,7 +25,21 @@ namespace CompanyF.Track
         [Tooltip("Segment that follows this one. Empty = end of the line.")]
         public TrackSegment next;
 
+        [Header("Junction")]
+        [Tooltip("Second way out of this segment. Empty = no junction.")]
+        public TrackSegment branch;
+        [Tooltip("On: the train takes the branch at the end of this segment instead of next.")]
+        public bool branchSelected;
+        [Tooltip("Looking along the track, the branch leaves to the left.")]
+        public bool branchOnLeft;
+
+        [Tooltip("This line ends at a drop: the train falls off instead of arriving.")]
+        public bool endsInChasm;
+
         float[] cumulative;
+
+        /// <summary>Segment the train moves on to, following the junction setting.</summary>
+        public TrackSegment Following => branch != null && branchSelected ? branch : next;
 
         public IReadOnlyList<Vector3> Points => points;
 

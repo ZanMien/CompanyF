@@ -25,6 +25,7 @@ namespace CompanyF.Gameplay
 
         [SerializeField] BoilerTemperature boiler;
         [SerializeField] TrainFollower train;
+        [SerializeField] CameraSwitcher cameras;
 
         [Header("Animation times (s)")]
         [Min(0f)] public float openTime = 0.3f;
@@ -67,6 +68,8 @@ namespace CompanyF.Gameplay
         public float P2LockoutLeft { get; private set; }
         /// <summary>Door counts as open for cooling: from fully open until fully closed.</summary>
         public bool CoolingActive { get; private set; }
+        /// <summary>The door and coal keys do nothing while the outside camera (camera 2) is showing.</summary>
+        public bool InputLocked => cameras != null && cameras.Active == 2;
 
         float clock;
         float lastDoorPress = float.NegativeInfinity;
@@ -76,12 +79,13 @@ namespace CompanyF.Gameplay
         {
             if (boiler == null) boiler = FindFirstObjectByType<BoilerTemperature>();
             if (train == null) train = FindFirstObjectByType<TrainFollower>();
+            if (cameras == null) cameras = FindFirstObjectByType<CameraSwitcher>();
         }
 
         void Update()
         {
             if (train != null && train.Stopped) return;
-            var keyboard = Keyboard.current;
+            var keyboard = InputLocked ? null : Keyboard.current;
             bool door = keyboard != null && keyboard[p1DoorKey].wasPressedThisFrame;
             bool coal = keyboard != null && (keyboard[p2CoalKey].wasPressedThisFrame
                                              || (p2CoalAltKey != Key.None && keyboard[p2CoalAltKey].wasPressedThisFrame));

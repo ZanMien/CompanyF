@@ -136,6 +136,43 @@ namespace CompanyF.Gameplay.EditorTools
                 Check($"timers off: waited in Opening ({waited}), CompleteState -> {hook.State}; entered {string.Join(",", entered)}",
                       waited && hook.State == DoorState.Open && string.Join(",", entered) == "Opening,Open");
                 Object.DestroyImmediate(hook.gameObject);
+
+                // Door leaves: turn around their own origins, in opposite directions, and return when closed.
+                var doors = new GameObject("_FurnaceDoors") { hideFlags = HideFlags.HideAndDontSave };
+                var doorFurnace = doors.AddComponent<FurnaceController>();
+                var left = new GameObject("_Left") { hideFlags = HideFlags.HideAndDontSave }.transform;
+                var right = new GameObject("_Right") { hideFlags = HideFlags.HideAndDontSave }.transform;
+                left.SetParent(doors.transform);
+                right.SetParent(doors.transform);
+                left.localPosition = new Vector3(-0.37f, 1.4f, -3.3f);
+                var visual = doors.AddComponent<FurnaceDoorVisual>();
+                var vso = new SerializedObject(visual);
+                vso.FindProperty("furnace").objectReferenceValue = doorFurnace;
+                vso.FindProperty("leftDoor").objectReferenceValue = left;
+                vso.FindProperty("rightDoor").objectReferenceValue = right;
+                vso.ApplyModifiedPropertiesWithoutUndo();
+                var pin = left.localPosition;
+
+                visual.Apply();
+                Check("door leaves start closed", Quaternion.Angle(left.localRotation, Quaternion.identity) < 0.01f);
+                doorFurnace.Tick(Dt, true, false);
+                for (float t = 0f; t < doorFurnace.openTime / 2f; t += Dt) doorFurnace.Tick(Dt, false, false);
+                visual.Apply();
+                float halfway = Quaternion.Angle(left.localRotation, Quaternion.identity);
+                Check($"opening: leaf part way at {halfway:0.0}°", halfway > 1f && halfway < visual.openAngle - 1f);
+                for (float t = 0f; t < doorFurnace.openTime; t += Dt) doorFurnace.Tick(Dt, false, false);
+                visual.Apply();
+                Check($"open: left {left.localEulerAngles.z:0.0}°, right {right.localEulerAngles.z:0.0}°, pin stays put",
+                      Mathf.Abs(Mathf.DeltaAngle(left.localEulerAngles.z, visual.openAngle)) < 0.01f
+                      && Mathf.Abs(Mathf.DeltaAngle(right.localEulerAngles.z, -visual.openAngle)) < 0.01f
+                      && left.localPosition == pin);
+                doorFurnace.Tick(Dt, true, false);
+                for (float t = 0f; t < doorFurnace.closeTime + Dt; t += Dt) doorFurnace.Tick(Dt, false, false);
+                visual.Apply();
+                Check($"closed again ({doorFurnace.State})", doorFurnace.State == DoorState.Closed
+                      && Quaternion.Angle(left.localRotation, Quaternion.identity) < 0.01f
+                      && Quaternion.Angle(right.localRotation, Quaternion.identity) < 0.01f);
+                Object.DestroyImmediate(doors);
             }
             finally
             {

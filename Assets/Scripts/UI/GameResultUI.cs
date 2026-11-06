@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace CompanyF.UI
 {
-    /// <summary>End screens: CLEAR when the train reaches the end, GAMEOVER when the boiler overheats.</summary>
+    /// <summary>End screens: CLEAR when the train reaches the end, GAMEOVER when the boiler overheats, the train falls into a chasm or it hits an animal.</summary>
     public class GameResultUI : MonoBehaviour
     {
         [SerializeField] TrainFollower train;
@@ -19,18 +19,30 @@ namespace CompanyF.UI
             if (clearPanel != null) clearPanel.SetActive(false);
             if (gameOverPanel != null) gameOverPanel.SetActive(false);
 
-            if (train != null) train.ReachedEnd += OnReachedEnd;
+            if (train != null)
+            {
+                train.ReachedEnd += OnReachedEnd;
+                train.Fell += OnFell;
+                train.Crashed += OnCrashed;
+            }
             if (boiler != null) boiler.Overheat += OnOverheat;
         }
 
         void OnDestroy()
         {
-            if (train != null) train.ReachedEnd -= OnReachedEnd;
+            if (train != null)
+            {
+                train.ReachedEnd -= OnReachedEnd;
+                train.Fell -= OnFell;
+                train.Crashed -= OnCrashed;
+            }
             if (boiler != null) boiler.Overheat -= OnOverheat;
         }
 
         void OnReachedEnd() => Show(clearPanel);
         void OnOverheat() => Show(gameOverPanel);
+        void OnFell() => Show(gameOverPanel);
+        void OnCrashed() => Show(gameOverPanel);
 
         void Show(GameObject panel)
         {
