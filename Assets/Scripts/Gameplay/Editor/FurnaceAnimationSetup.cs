@@ -39,8 +39,37 @@ namespace CompanyF.Gameplay.EditorTools
             Link(shovel, "apexPoint", Find("Train/ColePoint02"));
             Link(shovel, "blockedPoint", Find("Train/ColePoint03"));
 
+            SetupFlame(train, furnace);
+
             EditorSceneManager.MarkSceneDirty(train.scene);
             Debug.Log("[FurnaceAnim] setup done");
+        }
+
+        /// <summary>
+        /// The flare scales the flame's Transform, so every particle system under it must honour the hierarchy scale,
+        /// and simulate locally so the particles stay with the moving train.
+        /// </summary>
+        static void SetupFlame(GameObject train, FurnaceController furnace)
+        {
+            var flame = Find("Train/FireBall");
+            if (flame == null) return;
+
+            foreach (var system in flame.GetComponentsInChildren<ParticleSystem>(true))
+            {
+                Undo.RecordObject(system, "Setup Furnace Flame");
+                var main = system.main;
+                main.scalingMode = ParticleSystemScalingMode.Hierarchy;
+                main.simulationSpace = ParticleSystemSimulationSpace.Local;
+                EditorUtility.SetDirty(system);
+            }
+
+            var animator = GetOrAdd<FurnaceFlameAnimator>(train);
+            Link(animator, "furnace", furnace);
+            Link(animator, "flame", flame);
+
+            Undo.RecordObject(flame, "Setup Furnace Flame");
+            flame.localScale = Vector3.one * animator.normalSize;
+            EditorUtility.SetDirty(flame);
         }
 
         static T GetOrAdd<T>(GameObject go) where T : Component

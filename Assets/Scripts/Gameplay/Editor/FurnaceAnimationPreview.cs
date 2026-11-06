@@ -32,6 +32,75 @@ namespace CompanyF.Gameplay.EditorTools
             }
         }
 
+        /// <summary>
+        /// Simulates the flame at normal and full size behind the open door and measures how far its particles reach,
+        /// showing whether the Transform scale really changes the fire. Everything is put back afterwards.
+        /// </summary>
+        [MenuItem("Tools/Game/Render Flame Preview")]
+        public static void RenderFlame()
+        {
+            if (EditorApplication.isPlaying) { Debug.LogError("[FurnaceAnim] Run this outside Play Mode."); return; }
+
+            var train = GameObject.Find("Train").transform;
+            var flame = GameObject.Find("Train/FireBall").transform;
+            var flare = train.GetComponent<FurnaceFlameAnimator>();
+            var doorSo = new SerializedObject(train.GetComponent<FurnaceDoorAnimator>());
+            var door1 = (Transform)doorSo.FindProperty("door1").objectReferenceValue;
+            var door2 = (Transform)doorSo.FindProperty("door2").objectReferenceValue;
+            var door1Rot = door1.localRotation;
+            var door2Rot = door2.localRotation;
+            var scale = flame.localScale;
+            var systems = flame.GetComponentsInChildren<ParticleSystem>(true);
+
+            const int Cell = 640;
+            var target = new RenderTexture(Cell, Cell, 24, RenderTextureFormat.ARGB32);
+            var sheet = new Texture2D(Cell * 2, Cell, TextureFormat.RGB24, false);
+            var cameraGo = new GameObject("_FlamePreviewCamera", typeof(Camera)) { hideFlags = HideFlags.HideAndDontSave };
+            var report = new StringBuilder();
+            try
+            {
+                door1.localEulerAngles = new Vector3(0f, 145f, 0f);
+                door2.localEulerAngles = new Vector3(0f, -145f, 0f);
+                var camera = cameraGo.GetComponent<Camera>();
+                camera.targetTexture = target;
+                camera.nearClipPlane = 0.02f;
+                camera.fieldOfView = 45f;
+                cameraGo.transform.position = train.TransformPoint(new Vector3(0f, 1.75f, -4.6f));
+                cameraGo.transform.rotation = Quaternion.LookRotation(flame.position - cameraGo.transform.position, Vector3.up);
+
+                var sizes = new[] { flare.normalSize, flare.maxSize };
+                for (int i = 0; i < sizes.Length; i++)
+                {
+                    flame.localScale = Vector3.one * sizes[i];
+                    foreach (var s in systems)
+                    {
+                        s.Simulate(2f, false, true);
+                        var r = s.GetComponent<ParticleSystemRenderer>();
+                        report.AppendLine($"scale {sizes[i]}: {s.name} particles={s.particleCount} bounds={r.bounds.size:F3} mode={s.main.scalingMode} space={s.main.simulationSpace}");
+                    }
+                    camera.Render();
+                    camera.Render();
+                    RenderTexture.active = target;
+                    sheet.ReadPixels(new Rect(0, 0, Cell, Cell), i * Cell, 0);
+                }
+                sheet.Apply();
+                File.WriteAllBytes("Temp/FlamePreview.png", sheet.EncodeToPNG());
+                File.WriteAllText("Temp/FlamePreview.txt", report.ToString());
+                Debug.Log("[FurnaceAnim] flame preview done");
+            }
+            finally
+            {
+                foreach (var s in systems) s.Clear(false);
+                flame.localScale = scale;
+                door1.localRotation = door1Rot;
+                door2.localRotation = door2Rot;
+                RenderTexture.active = null;
+                Object.DestroyImmediate(cameraGo);
+                Object.DestroyImmediate(target);
+                Object.DestroyImmediate(sheet);
+            }
+        }
+
         [MenuItem("Tools/Game/Render Furnace Animation Preview")]
         public static void Run()
         {

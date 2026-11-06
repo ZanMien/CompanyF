@@ -5,7 +5,7 @@ using UnityEngine.UI;
 namespace CompanyF.UI
 {
     /// <summary>
-    /// Placeholder HUD: speedometer (bottom right), temperature bar (bottom), furnace status text (upper centre).
+    /// Placeholder HUD: speedometer (bottom right), temperature bar (bottom), cooling message (upper centre).
     /// Only reads the gameplay components, so it can be swapped for the final design.
     /// </summary>
     public class GameHUD : MonoBehaviour
@@ -33,12 +33,9 @@ namespace CompanyF.UI
         public Color coldColor = Color.white;
         public Color hotColor = new Color(0.9f, 0.08f, 0.04f);
 
-        [Header("Status")]
-        [SerializeField] Text doorText;
+        [Header("Cooling message")]
         [SerializeField] Text flashText;
-        [SerializeField] Text failText;
         [Min(0f)] public float flashTime = 0.5f;
-        public Color coalFlashColor = new Color(1f, 0.6f, 0.15f);
         public Color coolFlashColor = new Color(0.45f, 0.8f, 1f);
 
         [Tooltip("OS fonts tried in order so Japanese text renders (the built-in font has no Japanese glyphs).")]
@@ -67,11 +64,7 @@ namespace CompanyF.UI
             if (speed == null) speed = FindFirstObjectByType<TemperatureSpeed>();
             if (furnace == null) furnace = FindFirstObjectByType<FurnaceController>();
 
-            if (furnace != null)
-            {
-                furnace.CoalAdded += OnCoalAdded;
-                furnace.Cooled += OnCooled;
-            }
+            if (furnace != null) furnace.Cooled += OnCooled;
             if (boiler != null)
             {
                 if (minLabel != null) minLabel.text = $"{boiler.minTemperature:0} °C";
@@ -82,15 +75,10 @@ namespace CompanyF.UI
 
         void OnDestroy()
         {
-            if (furnace != null)
-            {
-                furnace.CoalAdded -= OnCoalAdded;
-                furnace.Cooled -= OnCooled;
-            }
+            if (furnace != null) furnace.Cooled -= OnCooled;
             if (gradient != null) Destroy(gradient);
         }
 
-        void OnCoalAdded(float heat) => Flash($"石炭投入！+{heat:0}°C", coalFlashColor);
         void OnCooled(float heat) => Flash($"-{heat:0}°C", coolFlashColor);
 
         void Flash(string message, Color color)
@@ -122,29 +110,10 @@ namespace CompanyF.UI
                 Set(temperatureText, $"{Mathf.RoundToInt(boiler.Temperature)} °C");
             }
 
-            if (furnace != null)
-            {
-                Set(doorText, DoorLabel(furnace.State));
-                if (failText != null && failText.gameObject.activeSelf != furnace.P2LockoutLeft > 0f)
-                    failText.gameObject.SetActive(furnace.P2LockoutLeft > 0f);
-            }
-
             if (flashLeft > 0f)
             {
                 flashLeft -= Time.deltaTime;
                 if (flashLeft <= 0f) Set(flashText, "");
-            }
-        }
-
-        static string DoorLabel(DoorState state)
-        {
-            switch (state)
-            {
-                case DoorState.Opening: return "開く中…";
-                case DoorState.Open: return "開";
-                case DoorState.Loading: return "石炭投入中…";
-                case DoorState.Closing: return "閉じる中…";
-                default: return "閉";
             }
         }
 

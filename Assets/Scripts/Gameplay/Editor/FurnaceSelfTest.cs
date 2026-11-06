@@ -181,6 +181,61 @@ namespace CompanyF.Gameplay.EditorTools
                 Run(40, door: true);  // 0.8 + 0.1 + 0.3 (door closed at 1.2 s): cooling is due as it closes
                 Check($"blocked coal keeps the cooling timer ({cools}x, {boiler.Temperature})", cools == 1 && Mathf.Approximately(boiler.Temperature, 250f));
 
+                // Flame trigger: only coal that will land, at the top of its arc.
+                int apexes = 0;
+                furnace.CoalReachedApex += () => apexes++;
+                Reset(250f);
+                Open();
+                Run(41, coal: true);
+                Check($"before the top of the arc: no flare ({apexes})", apexes == 0);
+                Run(2);
+                Check($"at the top of the arc: flare ({apexes})", apexes == 1);
+                Run(10);
+                Reset(250f);
+                Open();
+                apexes = 0;
+                Run(30, coal: true);
+                Run(50, door: true);
+                Check($"blocked coal passes the top without a flare ({apexes})", apexes == 0);
+                Reset(250f);
+                apexes = 0;
+                Run(80, coal: true);
+                Check($"tipped-out coal: no flare ({apexes})", apexes == 0);
+                Reset(250f);
+                Open();
+                apexes = 0;
+                Run(45, coal: true);
+                Run(10, door: true);
+                Check($"F after the top: coal lands, flare fired once ({apexes})", apexes == 1);
+
+                // Flare: 0.2 s up, 0.5 s hold, 0.5 s down; restarts from the current size.
+                var flare = go.AddComponent<FurnaceFlameAnimator>();
+                flare.ResetSize();
+                void Flare(int ticks) { for (int i = 0; i < ticks; i++) flare.Tick(Dt); }
+                Check($"flame at rest: {flare.Size}", Mathf.Approximately(flare.Size, 0.15f) && flare.Phase == FurnaceFlameAnimator.FlarePhase.Idle);
+                flare.Flare();
+                Flare(10);
+                Check($"0.10 s: growing ({flare.Size:0.000})", flare.Size > 0.15f && flare.Size < 0.25f && flare.Phase == FurnaceFlameAnimator.FlarePhase.Grow);
+                Flare(10);
+                Check($"0.20 s: full size ({flare.Size:0.000})", Mathf.Approximately(flare.Size, 0.25f) && flare.Phase == FurnaceFlameAnimator.FlarePhase.Hold);
+                Flare(49);
+                Check($"0.69 s: still holding ({flare.Size:0.000})", Mathf.Approximately(flare.Size, 0.25f) && flare.Phase == FurnaceFlameAnimator.FlarePhase.Hold);
+                Flare(26);
+                Check($"0.95 s: shrinking ({flare.Size:0.000})", flare.Size > 0.15f && flare.Size < 0.25f && flare.Phase == FurnaceFlameAnimator.FlarePhase.Shrink);
+                float midShrink = flare.Size;
+
+                flare.Flare();
+                Check($"retrigger while shrinking: grows from {midShrink:0.000}", flare.Phase == FurnaceFlameAnimator.FlarePhase.Grow && Mathf.Approximately(flare.Size, midShrink));
+                Flare(20);
+                Check($"... 0.2 s later full size ({flare.Size:0.000})", Mathf.Approximately(flare.Size, 0.25f));
+                Flare(30);
+                flare.Flare();
+                Check($"retrigger at full size: goes straight to a new hold ({flare.Phase})", flare.Phase == FurnaceFlameAnimator.FlarePhase.Hold);
+                Flare(49);
+                Check($"... hold restarted: still full at 0.49 s ({flare.Phase})", flare.Phase == FurnaceFlameAnimator.FlarePhase.Hold);
+                Flare(52);
+                Check($"... back at rest after the shrink: {flare.Size:0.000}, {flare.Phase}", Mathf.Approximately(flare.Size, 0.15f) && flare.Phase == FurnaceFlameAnimator.FlarePhase.Idle);
+
                 // Temperature -> speed.
                 Check($"750 °C -> {speed.DisplayFor(750f)} km/h, train {speed.TrainSpeedFor(speed.DisplayFor(750f))}",
                       Mathf.Approximately(speed.DisplayFor(750f), 85f) && Mathf.Approximately(speed.TrainSpeedFor(85f), 82.5f));

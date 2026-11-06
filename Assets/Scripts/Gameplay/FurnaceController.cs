@@ -78,6 +78,8 @@ namespace CompanyF.Gameplay
 
         public event Action<DoorState> StateEntered;
         public event Action<DoorState> StateExited;
+        /// <summary>A coal that will land reached the top of its arc. Blocked coal never raises this.</summary>
+        public event Action CoalReachedApex;
         /// <summary>Coal landed: (heat added).</summary>
         public event Action<float> CoalAdded;
         /// <summary>The open door actually lowered the temperature: (heat removed).</summary>
@@ -95,6 +97,7 @@ namespace CompanyF.Gameplay
 
         float coolTimer;
         float nextCoolWait;
+        bool apexRaised;
 
         void Start()
         {
@@ -181,6 +184,7 @@ namespace CompanyF.Gameplay
             if (State == DoorState.Open)
             {
                 Action = ShovelAction.Throw;
+                apexRaised = false;
                 Enter(DoorState.Loading);
             }
             else
@@ -202,6 +206,11 @@ namespace CompanyF.Gameplay
             switch (Action)
             {
                 case ShovelAction.Throw:
+                    if (!apexRaised && ActionTime >= apexTime - Epsilon)
+                    {
+                        apexRaised = true;
+                        CoalReachedApex?.Invoke();
+                    }
                     if (ActionTime < loadTime - Epsilon) return;
                     Action = ShovelAction.None;
                     if (boiler != null) boiler.Change(coalHeat);

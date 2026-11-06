@@ -107,17 +107,10 @@ namespace CompanyF.UI.EditorTools
             var maxLabel = NewText(bar, "MaxLabel", "1500 °C", 28, TextAnchor.UpperCenter, new Color(1f, 0.15f, 0.1f));
             Place(maxLabel.rectTransform, new Vector2(1f, 0f), new Vector2(0.5f, 1f), new Vector2(0f, -6f), new Vector2(180f, 36f));
 
-            // Furnace status, upper centre.
-            var door = NewText(canvas, "DoorText", "閉", 80, TextAnchor.MiddleCenter, Color.white);
-            door.fontStyle = FontStyle.Bold;
-            Place(door.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -150f), new Vector2(900f, 100f));
+            // Cooling message, upper centre.
             var flash = NewText(canvas, "FlashText", "", 60, TextAnchor.MiddleCenter, Color.white);
             flash.fontStyle = FontStyle.Bold;
             Place(flash.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -260f), new Vector2(900f, 80f));
-            var fail = NewText(canvas, "FailText", "2P 失敗", 60, TextAnchor.MiddleCenter, new Color(1f, 0.2f, 0.15f));
-            fail.fontStyle = FontStyle.Bold;
-            Place(fail.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -350f), new Vector2(900f, 80f));
-            fail.gameObject.SetActive(false);
 
             var hud = canvas.gameObject.AddComponent<GameHUD>();
             var so = new SerializedObject(hud);
@@ -129,9 +122,7 @@ namespace CompanyF.UI.EditorTools
             so.FindProperty("temperatureText").objectReferenceValue = temperatureText;
             so.FindProperty("minLabel").objectReferenceValue = minLabel;
             so.FindProperty("maxLabel").objectReferenceValue = maxLabel;
-            so.FindProperty("doorText").objectReferenceValue = door;
             so.FindProperty("flashText").objectReferenceValue = flash;
-            so.FindProperty("failText").objectReferenceValue = fail;
             so.ApplyModifiedPropertiesWithoutUndo();
         }
 
