@@ -9,21 +9,25 @@ namespace CompanyF.Gameplay
     /// Every object tagged Cow or Horse: once it is both near the train and inside camera point 2's view, it charges
     /// onto the track. A whistle wave reaching a charging animal turns it around (Rotation Y negated) and sends it back
     /// to where it started, where it stays. Waves do nothing to animals that have not started charging.
-    /// Reach is measured against the animal's model bounds, so no Collider is needed.
+    /// Wave reach is measured against the animal's model bounds. Touching the train is judged by comparing colliders
+    /// each frame (no Rigidbody involved): the animal vanishes if the whistle is sounding, otherwise the round is lost.
     /// </summary>
     public class AnimalHerd : MonoBehaviour
     {
-        public enum AnimalState { Waiting, Charging, Fleeing, Done }
+        public enum AnimalState { Waiting, Charging, Fleeing, Done, Gone }
 
         public class Animal
         {
             public Transform transform;
             public Renderer[] renderers;
+            public Collider collider;
             public AnimalState state;
             public float originalX;
             public float originalRotationY;
             public float startX;
             public float timer;
+            /// <summary>Its call has been handled for this run (see <see cref="AnimalSounds"/>).</summary>
+            public bool hasCalled;
 
             public Bounds Bounds
             {
@@ -40,6 +44,9 @@ namespace CompanyF.Gameplay
         [SerializeField] TrainFollower train;
         [SerializeField] WhistleWaves waves;
         [SerializeField] CameraPeek cameraPeek;
+        [SerializeField] TrainControls controls;
+        [Tooltip("The collider that counts as the train when it touches an animal.")]
+        [SerializeField] Collider trainCollider;
 
         [Tooltip("Objects with these tags are treated as animals.")]
         public string[] animalTags = { "Cow", "Horse" };
@@ -56,6 +63,9 @@ namespace CompanyF.Gameplay
 
         readonly List<Animal> animals = new List<Animal>();
         readonly Plane[] viewPlanes = new Plane[6];
+
+        /// <summary>The train touched an animal while the whistle was not sounding.</summary>
+        public event Action StruckWithoutWhistle;
 
         public IReadOnlyList<Animal> Animals => animals;
 
@@ -76,6 +86,7 @@ namespace CompanyF.Gameplay
             {
                 transform = animal,
                 renderers = animal.GetComponentsInChildren<Renderer>(),
+                collider = animal.GetComponent<Collider>(),
                 state = AnimalState.Waiting,
                 originalX = animal.position.x,
                 originalRotationY = animal.localEulerAngles.y,
@@ -91,6 +102,35 @@ namespace CompanyF.Gameplay
             Tick(Time.deltaTime, train.NosePosition, train.transform.position,
                  bounds => GeometryUtility.TestPlanesAABB(viewPlanes, bounds),
                  waves != null ? waves.ActiveRadii : null);
+
+            if (trainCollider != null)
+            {
+                // Colliders otherwise only follow their transforms at the next physics step.
+                Physics.SyncTransforms();
+                CheckCollisions(trainCollider.bounds, controls != null && controls.IsWhistling);
+            }
+        }
+
+        /// <summary>
+        /// Handles animals touching the train right now: with the whistle sounding they vanish; without it the
+        /// round is lost. Only the state at this moment counts.
+        /// </summary>
+        public void CheckCollisions(Bounds trainBounds, bool whistling)
+        {
+            foreach (var animal in animals)
+            {
+                if (animal.state == AnimalState.Gone) continue;
+                var bounds = animal.collider != null ? animal.collider.bounds : animal.Bounds;
+                if (!bounds.Intersects(trainBounds)) continue;
+
+                if (!whistling)
+                {
+                    StruckWithoutWhistle?.Invoke();
+                    return;
+                }
+                animal.state = AnimalState.Gone;
+                animal.transform.gameObject.SetActive(false);
+            }
         }
 
         /// <summary>

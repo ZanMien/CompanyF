@@ -11,6 +11,7 @@ namespace CompanyF.Gameplay.EditorTools
     public static class WhistleAnimalSetup
     {
         const string MaterialPath = "Assets/Materials/WhistleWave.mat";
+        const string CallSourceName = "AnimalCallSource";
         static readonly Color RingColor = new Color(2.6f, 1.45f, 0.25f, 0.8f);  // HDR orange-yellow, picked up by Bloom
 
         [MenuItem("Tools/Game/Setup Whistle And Animals")]
@@ -35,6 +36,31 @@ namespace CompanyF.Gameplay.EditorTools
             Link(herd, "train", train.GetComponent<TrainFollower>());
             Link(herd, "waves", waves);
             Link(herd, "cameraPeek", train.GetComponent<CameraPeek>());
+
+            // Animal calls: their own 2D source under the train, so the whistle never cuts them off.
+            var sourceTransform = train.transform.Find(CallSourceName);
+            if (sourceTransform == null)
+            {
+                var go = new GameObject(CallSourceName);
+                Undo.RegisterCreatedObjectUndo(go, "Setup Animal Sounds");
+                go.transform.SetParent(train.transform, false);
+                sourceTransform = go.transform;
+            }
+            var source = GetOrAdd<AudioSource>(sourceTransform.gameObject);
+            source.playOnAwake = false;
+            source.loop = false;
+            source.spatialBlend = 0f;
+            EditorUtility.SetDirty(source);
+
+            var sounds = GetOrAdd<AnimalSounds>(train);
+            Link(sounds, "herd", herd);
+            Link(sounds, "train", train.GetComponent<TrainFollower>());
+            Link(sounds, "source", source);
+            Undo.RecordObject(sounds, "Setup Animal Sounds");
+            sounds.cowSound = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Sound/CowSound.wav");
+            sounds.horseSound = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Sound/HorseSound.wav");
+            if (sounds.cowSound == null || sounds.horseSound == null) Debug.LogError("[Whistle] Sound clips not found in Assets/Sound.");
+            EditorUtility.SetDirty(sounds);
 
             EditorSceneManager.MarkSceneDirty(train.scene);
             Debug.Log("[Whistle] setup done");
@@ -224,6 +250,24 @@ namespace CompanyF.Gameplay.EditorTools
                 Check($"75 m from the nose: charges, even with the centre 100 m away ({ahead.state})", ahead.state == AnimalHerd.AnimalState.Charging);
                 herd.Tick(Dt, new Vector3(0f, 0f, 495f), new Vector3(0f, 0f, 480f), _ => visible, new List<float> { 10f });
                 Check($"wave reach counts from the centre: 20 m away, 10 m wave, no hit ({ahead.state})", ahead.state == AnimalHerd.AnimalState.Charging);
+
+                // Calls: only an animal running right now, once per run.
+                var calls = new List<AnimalHerd.Animal>
+                {
+                    new AnimalHerd.Animal { state = AnimalHerd.AnimalState.Waiting },
+                    new AnimalHerd.Animal { state = AnimalHerd.AnimalState.Fleeing, timer = 0.1f },
+                    new AnimalHerd.Animal { state = AnimalHerd.AnimalState.Done },
+                    new AnimalHerd.Animal { state = AnimalHerd.AnimalState.Charging, timer = 0.6f },
+                };
+                Check("no call for waiting, fleeing, done or already-arrived animals", AnimalSounds.PickNext(calls, 0.5f) == null);
+                var runner = new AnimalHerd.Animal { state = AnimalHerd.AnimalState.Charging, timer = 0.2f };
+                calls.Add(runner);
+                Check("a running animal gets a call", AnimalSounds.PickNext(calls, 0.5f) == runner);
+                runner.hasCalled = true;
+                Check("it does not call twice in one run", AnimalSounds.PickNext(calls, 0.5f) == null);
+                runner.hasCalled = false;
+                runner.timer = 0.5f;
+                Check("an animal that arrived during another call is not called afterwards", AnimalSounds.PickNext(calls, 0.5f) == null);
             }
             finally
             {

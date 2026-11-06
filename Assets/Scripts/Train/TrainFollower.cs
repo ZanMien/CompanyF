@@ -36,10 +36,25 @@ namespace CompanyF.Train
         readonly HashSet<Transform> exitedPieces = new HashSet<Transform>();
         float endOfLine = -1f;
         float distance;
+        float routeLength;
 
         public float Distance => distance;
         /// <summary>World position of the front of the locomotive.</summary>
         public Vector3 NosePosition => transform.TransformPoint(0f, 0f, frontBumper);
+
+        /// <summary>How far along the route the nose is: 0 at the start position, 1 at the end of the line.</summary>
+        public float RouteProgress
+        {
+            get
+            {
+                if (segments.Count == 0) return 0f;
+                if (routeLength <= 0f)
+                    for (var segment = route.start; segment != null; segment = segment.next)
+                        routeLength += segment.Length;
+                float startNose = rearBumper + frontBumper;
+                return Mathf.Clamp01((distance + frontBumper - startNose) / (routeLength - startNose));
+            }
+        }
         public bool Arrived { get; private set; }
         /// <summary>Stopped early by <see cref="Halt"/> (e.g. game over).</summary>
         public bool Halted { get; private set; }
