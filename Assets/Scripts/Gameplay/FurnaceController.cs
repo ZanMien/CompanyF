@@ -85,6 +85,8 @@ namespace CompanyF.Gameplay
         /// <summary>The open door actually lowered the temperature: (heat removed).</summary>
         public event Action<float> Cooled;
         public event Action P2Failed;
+        /// <summary>A shovel action started, including an attempt with the door closed.</summary>
+        public event Action ShovelStarted;
 
         public DoorState State { get; private set; } = DoorState.Closed;
         public float StateTime { get; private set; }
@@ -184,12 +186,14 @@ namespace CompanyF.Gameplay
             if (State == DoorState.Open)
             {
                 Action = ShovelAction.Throw;
+                ShovelStarted?.Invoke();
                 apexRaised = false;
                 Enter(DoorState.Loading);
             }
             else
             {
                 Action = ShovelAction.FailDoorNotOpen;
+                ShovelStarted?.Invoke();
                 FailP2($"door is {State}");
             }
         }
