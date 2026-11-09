@@ -3,6 +3,8 @@ using CompanyF.Gameplay;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
 using UnityEngine.Rendering.Universal;
 using UnityEngine.UI;
 
@@ -19,6 +21,9 @@ namespace CompanyF.UI.EditorTools
         const string CountdownName = "CountdownCanvas";
         const string ResultCameraName = "ResultCamera";
         const string TitleScenePath = "Assets/Scenes/Title.unity";
+        const string SoundFolder = "Assets/Sound/";
+        const string CowCallPath = "Assets/Voice/牛の声 V.2.0.wav";
+        const string HorseCallPath = "Assets/Voice/馬の声 V.2.0.wav";
         const float ResultCameraDistance = 60f;
         static readonly Vector3 ResultCameraTarget = new Vector3(0f, 0f, 900f);
         static readonly Color WoodShadow = new Color32(0x89, 0x49, 0x14, 0xFF);
@@ -165,6 +170,42 @@ namespace CompanyF.UI.EditorTools
             EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
         }
 
+        /// <summary>Adds the sound effects and gives the animals their calls, leaving everything else alone.</summary>
+        [MenuItem("Tools/Game/Setup Game Audio")]
+        public static void SetupGameAudio()
+        {
+            var old = Object.FindFirstObjectByType<GameAudio>();
+            if (old != null) Undo.DestroyObjectImmediate(old.gameObject);
+
+            var go = new GameObject("GameAudio");
+            Undo.RegisterCreatedObjectUndo(go, "Setup Game Audio");
+            var audio = go.AddComponent<GameAudio>();
+            audio.doorOpen = Clip("でかい扉が開いた音");
+            audio.doorClose = Clip("でかい扉が閉まった音");
+            audio.shovel = Clip("土をシャベルですくって入れる音");
+            audio.fireUp = Clip("炎の勢いが強まった音 V.3.0");
+            audio.fireLoop = Clip("炎が燃えている音 V3.0");
+            audio.lever = Clip("進路レバーを倒した音 V.4.0");
+            audio.clear = Clip("ゲームクリア音");
+            audio.gameOver = Clip("ゲームオーバー音");
+            audio.sceneChange = Clip("シーン遷移");
+
+            foreach (var animal in Object.FindObjectsByType<TrackAnimal>(FindObjectsSortMode.None))
+            {
+                if (animal.call == null) continue;
+                Undo.RecordObject(animal.call, "Setup Game Audio");
+                animal.call.clip = AssetDatabase.LoadAssetAtPath<AudioClip>(animal.name.StartsWith("Cow") ? CowCallPath : HorseCallPath);
+            }
+            EditorSceneManager.MarkSceneDirty(go.scene);
+        }
+
+        static AudioClip Clip(string name)
+        {
+            var clip = AssetDatabase.LoadAssetAtPath<AudioClip>($"{SoundFolder}{name}.wav");
+            if (clip == null) Debug.LogError($"[Game] No sound '{name}' in {SoundFolder}");
+            return clip;
+        }
+
         [MenuItem("Tools/Game/Clear Ranking")]
         public static void ClearRanking() => ResultRanking.Clear();
 
@@ -206,8 +247,9 @@ namespace CompanyF.UI.EditorTools
                 Place(rows[i].rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -116f - i * 72f), new Vector2(760f, 68f));
             }
 
-            var prompt = NewText(panel, "LeavePrompt", "Enter：タイトルへ", 36, TextAnchor.MiddleCenter, Color.white);
-            Place(prompt.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 14f), new Vector2(600f, 50f));
+            var retry = NewButton(panel, "RetryButton", "もう一回", -210f);
+            var toTitle = NewButton(panel, "TitleButton", "タイトル画面へ", 210f);
+            EnsureEventSystem();
 
             var ui = canvas.gameObject.AddComponent<GameResultUI>();
             var so = new SerializedObject(ui);
@@ -216,6 +258,8 @@ namespace CompanyF.UI.EditorTools
             so.FindProperty("titleText").objectReferenceValue = title;
             so.FindProperty("timeText").objectReferenceValue = time;
             so.FindProperty("resultCamera").objectReferenceValue = BuildResultCamera();
+            so.FindProperty("retryButton").objectReferenceValue = retry;
+            so.FindProperty("titleButton").objectReferenceValue = toTitle;
             var rowsProperty = so.FindProperty("rankingRows");
             rowsProperty.arraySize = rows.Length;
             for (int i = 0; i < rows.Length; i++)
@@ -224,6 +268,35 @@ namespace CompanyF.UI.EditorTools
             panel.gameObject.SetActive(false);
 
             AddSceneToBuild(TitleScenePath);
+        }
+
+        /// <summary>A button in the strip below the board.</summary>
+        static Button NewButton(Transform parent, string name, string text, float x)
+        {
+            var rect = NewImage(parent, name, null, Color.white);
+            Place(rect, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(x, 10f), new Vector2(380f, 70f));
+            var image = rect.GetComponent<Image>();
+            image.raycastTarget = true;
+
+            var button = rect.gameObject.AddComponent<Button>();
+            button.targetGraphic = image;
+            var colors = button.colors;
+            colors.normalColor = Paper;
+            colors.highlightedColor = colors.selectedColor = new Color32(0xC8, 0x61, 0x0D, 0xFF);
+            colors.pressedColor = WoodShadow;
+            colors.disabledColor = new Color(Paper.r, Paper.g, Paper.b, 0.5f);
+            button.colors = colors;
+
+            var label = Emboss(NewText(rect, "Label", text, 42, TextAnchor.MiddleCenter, PaperText));
+            Stretch(label.rectTransform, 0f);
+            return button;
+        }
+
+        static void EnsureEventSystem()
+        {
+            if (Object.FindFirstObjectByType<EventSystem>() != null) return;
+            var go = new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
+            Undo.RegisterCreatedObjectUndo(go, "Setup Result Screen");
         }
 
         /// <summary>Looks at a point on the stage floor from 45° up and at an angle.</summary>

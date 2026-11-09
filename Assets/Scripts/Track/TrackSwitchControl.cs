@@ -1,3 +1,4 @@
+using System;
 using CompanyF.Train;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -19,6 +20,9 @@ namespace CompanyF.Track
         public Key leftKey = Key.A;
         public Key rightKey = Key.D;
 
+        /// <summary>The lever was pushed while a junction was in range.</summary>
+        public event Action Switched;
+
         void Start()
         {
             if (train == null) train = FindFirstObjectByType<TrainFollower>();
@@ -32,8 +36,11 @@ namespace CompanyF.Track
             var junction = train.UpcomingJunction(switchRange);
             if (junction == null) return;
 
-            if (keyboard[leftKey].wasPressedThisFrame) junction.branchSelected = junction.branchOnLeft;
-            else if (keyboard[rightKey].wasPressedThisFrame) junction.branchSelected = !junction.branchOnLeft;
+            bool left = keyboard[leftKey].wasPressedThisFrame;
+            if (!left && !keyboard[rightKey].wasPressedThisFrame) return;
+
+            junction.branchSelected = left == junction.branchOnLeft;
+            Switched?.Invoke();
         }
     }
 }

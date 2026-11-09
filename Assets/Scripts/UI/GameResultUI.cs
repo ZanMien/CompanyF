@@ -1,7 +1,8 @@
+using System;
 using CompanyF.Gameplay;
 using CompanyF.Train;
 using UnityEngine;
-using UnityEngine.InputSystem;
+using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -15,6 +16,11 @@ namespace CompanyF.UI
     {
         const string NoTime = "--:--.--";
 
+        /// <summary>Raised once when the result appears: (cleared).</summary>
+        public event Action<bool> Shown;
+        /// <summary>Raised just before a button loads another scene.</summary>
+        public event Action Leaving;
+
         [SerializeField] TrainFollower train;
         [SerializeField] BoilerTemperature boiler;
         [SerializeField] GameObject panel;
@@ -25,6 +31,8 @@ namespace CompanyF.UI
         [SerializeField] Text[] rankingRows;
         [Tooltip("Stage view shown behind the board. Off until the result appears.")]
         [SerializeField] Camera resultCamera;
+        [SerializeField] Button retryButton;
+        [SerializeField] Button titleButton;
 
         [Header("Text")]
         public string clearTitle = "ゲームクリア";
@@ -44,16 +52,16 @@ namespace CompanyF.UI
         public float swingFrequency = 7f;
         public float swingDamping = 2.5f;
 
-        [Header("Leaving")]
-        [Tooltip("Scene loaded by the leave key. It must be in the Build Settings.")]
-        public string nextScene = "Title";
-        public Key leaveKey = Key.Enter;
-        [Tooltip("Seconds before the leave key works, so a player still shovelling coal does not skip the result.")]
-        [Min(0f)] public float leaveDelay = 1.5f;
+        [Header("Buttons")]
+        [Tooltip("Scene loaded by the title button. It must be in the Build Settings.")]
+        public string titleScene = "Title";
+        [Tooltip("Seconds before the buttons work, so a player still shovelling coal does not skip the result.")]
+        [Min(0f)] public float buttonDelay = 1.5f;
 
         float elapsed;
         float shownFor;
         bool shown;
+        bool buttonsReady;
         Vector2 boardHome;
 
         void Start()
@@ -63,6 +71,9 @@ namespace CompanyF.UI
             if (panel != null) panel.SetActive(false);
             if (resultCamera != null) resultCamera.enabled = false;
             if (board != null) boardHome = board.anchoredPosition;
+            retryButton.onClick.AddListener(Retry);
+            titleButton.onClick.AddListener(GoToTitle);
+            retryButton.interactable = titleButton.interactable = false;
 
             var usedFont = font != null ? font : Font.CreateDynamicFontFromOSFont(fontNames, 32);
             if (usedFont != null)
@@ -100,9 +111,21 @@ namespace CompanyF.UI
             shownFor += Time.deltaTime;
             AnimateBoard();
 
-            var keyboard = Keyboard.current;
-            if (shownFor >= leaveDelay && keyboard != null && keyboard[leaveKey].wasPressedThisFrame)
-                SceneManager.LoadScene(nextScene);
+            if (!buttonsReady && shownFor >= buttonDelay)
+            {
+                buttonsReady = true;
+                retryButton.interactable = titleButton.interactable = true;
+                if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(retryButton.gameObject);
+            }
+        }
+
+        void Retry() => Leave(SceneManager.GetActiveScene().name);
+        void GoToTitle() => Leave(titleScene);
+
+        void Leave(string scene)
+        {
+            Leaving?.Invoke();
+            SceneManager.LoadScene(scene);
         }
 
         void OnReachedEnd() => Show(true);
@@ -128,6 +151,7 @@ namespace CompanyF.UI
 
             AnimateBoard();
             panel.SetActive(true);
+            Shown?.Invoke(cleared);
         }
 
         void FillRanking(int place)
