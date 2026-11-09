@@ -9,6 +9,7 @@ namespace CompanyF.Train
     /// taking the time in proportion to the way already covered.
     /// The camera is a child of the Train and only its local pose is set, so it stays locked to the train.
     /// </summary>
+    [DefaultExecutionOrder(-100)]
     public class CameraPeek : MonoBehaviour
     {
         [SerializeField] Camera peekCamera;
@@ -35,6 +36,9 @@ namespace CompanyF.Train
         public float Progress { get; private set; }
         /// <summary>The point the camera is at or moving to: 1 or 2.</summary>
         public int TargetPoint => target >= 1f ? 2 : 1;
+        /// <summary>Operations are allowed only after the camera reaches the corresponding view.</summary>
+        public bool IsFurnaceView => TargetPoint == 1 && Progress <= 1e-4f;
+        public bool IsOutsideView => TargetPoint == 2 && Progress >= 1f - 1e-4f;
 
         float target;
 

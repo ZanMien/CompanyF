@@ -100,6 +100,16 @@ namespace CompanyF.Gameplay
         float coolTimer;
         float nextCoolWait;
         bool apexRaised;
+        CameraPeek cameraPeek;
+
+        public bool CanOperate
+        {
+            get
+            {
+                if (cameraPeek == null) cameraPeek = GetComponent<CameraPeek>();
+                return cameraPeek == null || cameraPeek.IsFurnaceView;
+            }
+        }
 
         void Start()
         {
@@ -135,8 +145,11 @@ namespace CompanyF.Gameplay
                 }
             }
 
-            if (doorPressed) PressDoor();
-            if (coalPressed) PressCoal();
+            if (CanOperate)
+            {
+                if (doorPressed) PressDoor();
+                if (coalPressed) PressCoal();
+            }
 
             AdvanceAction();
             if (useTimers) AdvanceDoor();

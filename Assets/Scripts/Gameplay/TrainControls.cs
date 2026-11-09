@@ -43,6 +43,16 @@ namespace CompanyF.Gameplay
 
         float blastTime;
         bool whistleKeyWasHeld;
+        CameraPeek cameraPeek;
+
+        public bool CanWhistle
+        {
+            get
+            {
+                if (cameraPeek == null) cameraPeek = GetComponent<CameraPeek>();
+                return cameraPeek == null || cameraPeek.IsOutsideView;
+            }
+        }
 
         // A key already down when the controls come on (held through the opening) counts as an old press.
         void OnEnable() => whistleKeyWasHeld = Keyboard.current != null && Keyboard.current[whistleKey].isPressed;
@@ -75,7 +85,7 @@ namespace CompanyF.Gameplay
             if (Whistle == WhistleState.Sounding)
             {
                 blastTime += dt;
-                if (!keyHeld || blastTime >= whistleMaxTime - 1e-4f)
+                if (!CanWhistle || !keyHeld || blastTime >= whistleMaxTime - 1e-4f)
                 {
                     Whistle = WhistleState.Cooldown;
                     WhistleCooldownLeft = whistleCooldown;
@@ -89,7 +99,7 @@ namespace CompanyF.Gameplay
                 if (WhistleCooldownLeft <= 1e-4f) Whistle = WhistleState.Ready;
             }
 
-            if (Whistle == WhistleState.Ready && pressed)
+            if (Whistle == WhistleState.Ready && pressed && CanWhistle)
             {
                 Whistle = WhistleState.Sounding;
                 blastTime = 0f;

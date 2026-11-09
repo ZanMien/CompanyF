@@ -84,7 +84,8 @@ namespace CompanyF.Gameplay
                 SilenceOtherAudio();
                 return;
             }
-            bool sounding = controls != null && controls.enabled && controls.IsWhistling;
+            if (controls != null && !controls.CanWhistle) StopSource(whistleSource);
+            bool sounding = controls != null && controls.enabled && controls.CanWhistle && controls.IsWhistling;
             if (sounding && !previousWhistle && !resultPlayed)
             {
                 StopSource(whistleSource);
@@ -93,7 +94,7 @@ namespace CompanyF.Gameplay
             previousWhistle = sounding;
 
             var keyboard = Keyboard.current;
-            bool holding = !resultPlayed && furnace != null && furnace.enabled
+            bool holding = !resultPlayed && furnace != null && furnace.enabled && furnace.CanOperate
                 && (flow == null || flow.Phase == GamePhase.Running)
                 && (train == null || !train.Stopped) && keyboard != null
                 && keyboard[furnace.p1DoorKey].isPressed;

@@ -90,6 +90,8 @@ namespace CompanyF.Gameplay.EditorTools
                         break;
                     case 4:
                         Check(effects.isPlaying, "door closing event plays audio");
+                        var peek = sounds.GetComponent<CameraPeek>();
+                        if (peek != null) peek.Tick(peek.moveTime, false, true);
                         controls.enabled = true;
                         controls.TickWhistle(0f, true);
                         sounds.SendMessage("LateUpdate");
