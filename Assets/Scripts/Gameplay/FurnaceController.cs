@@ -22,7 +22,7 @@ namespace CompanyF.Gameplay
     /// <summary>
     /// Furnace door and coal rules. P1 opens/closes the door, P2 shovels coal.
     ///   Door: Closed -F-> Opening -> Open -F-> Closing -> Closed (the key does nothing while the door is moving).
-    ///   Open + Enter: throw. The coal lands at <see cref="loadTime"/> (+heat), then the door closes automatically.
+    ///   Open + Enter: throw. The coal lands at <see cref="loadTime"/> (+heat); P1 closes the door manually.
     ///   F before <see cref="apexTime"/> of a throw: the door closes and the coal is blocked (P2 failure, no heat).
     ///   F after <see cref="apexTime"/>: the door closes and the coal still lands.
     ///   Enter while the door is not open: P2 failure, the coal is tipped out.
@@ -234,7 +234,7 @@ namespace CompanyF.Gameplay
                     Debug.Log($"[Furnace] 石炭投入 +{coalHeat:0}°C → {(boiler != null ? boiler.Temperature : 0f):0}°C", this);
                     CoalAdded?.Invoke(coalHeat);
                     RestartCooling();
-                    if (State == DoorState.Loading) Enter(DoorState.Closing);
+                    if (State == DoorState.Loading) Enter(DoorState.Open);
                     break;
                 case ShovelAction.FailDoorNotOpen:
                 case ShovelAction.FailBlocked:

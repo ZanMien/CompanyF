@@ -17,6 +17,8 @@ namespace CompanyF.Train
         [SerializeField] Transform point2;
         [Tooltip("Optional: the path curves through this point on the way, to keep the camera clear of the cab. Only its position is used.")]
         [SerializeField] Transform viaPoint;
+        [Tooltip("Optional collision-checked path in train-local coordinates. Takes priority over the via point.")]
+        [SerializeField] Vector3[] avoidancePath;
 
         [Header("Field of view at each point")]
         public float point1FieldOfView = 55f;
@@ -85,11 +87,24 @@ namespace CompanyF.Train
         }
 
         /// <summary>
-        /// Local position along the path (0 = point 1, 1 = point 2). With a <see cref="viaPoint"/> the path is one
-        /// smooth curve that passes through it halfway; without one it is a straight line.
+        /// Local position along the path (0 = point 1, 1 = point 2). Uses the collision-checked polyline when assigned;
+        /// otherwise uses the via-point curve or a straight line.
         /// </summary>
         public Vector3 PositionAt(float amount)
         {
+            if (avoidancePath != null && avoidancePath.Length >= 2)
+            {
+                float length = 0f;
+                for (int i = 1; i < avoidancePath.Length; i++) length += Vector3.Distance(avoidancePath[i - 1], avoidancePath[i]);
+                float remaining = Mathf.Clamp01(amount) * length;
+                for (int i = 1; i < avoidancePath.Length; i++)
+                {
+                    float segment = Vector3.Distance(avoidancePath[i - 1], avoidancePath[i]);
+                    if (remaining <= segment || i == avoidancePath.Length - 1)
+                        return Vector3.Lerp(avoidancePath[i - 1], avoidancePath[i], segment > 0f ? remaining / segment : 0f);
+                    remaining -= segment;
+                }
+            }
             var from = point1.localPosition;
             var to = point2.localPosition;
             if (viaPoint == null) return Vector3.LerpUnclamped(from, to, amount);

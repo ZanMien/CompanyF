@@ -53,8 +53,8 @@ MonoBehaviour:
   inputLockTime: 1
   rankingCount: 5
   highlightColor: {r: 1, g: 0.88235295, b: 0.23529412, a: 1}
-  restartKey: 1
-  restartScene: SampleScene
+  restartKey: 2
+  restartScene: TitleScene
   clearColor: {r: 0.9764706, g: 0.3882353, b: 0.3882353, a: 1}
   gameOverColor: {r: 0.48235294, g: 0.5647059, b: 0.98039216, a: 1}
   resultCamera: {fileID: 8094289457388207134}

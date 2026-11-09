@@ -18,6 +18,10 @@ public class TitleSceneController : MonoBehaviour
     [SerializeField] private float trainEndX = 2200f;
     [SerializeField] private float trainY = 80f;
 
+    [SerializeField] private AudioSource transitionAudio;
+    [SerializeField] private CompanyF.UI.TutorialVideoController tutorialVideo;
+    private bool startInputArmed;
+
     // Prevent repeated input / “ü—Í‚Ì˜A‘±ó•t‚ğ–h~
     private bool isStarting = false;
 
@@ -34,6 +38,14 @@ public class TitleSceneController : MonoBehaviour
     {
         if (isStarting)
             return;
+
+        bool held = (Keyboard.current != null && Keyboard.current.enterKey.isPressed)
+            || (Gamepad.current != null && Gamepad.current.buttonSouth.isPressed);
+        if (!startInputArmed)
+        {
+            if (!held) startInputArmed = true;
+            return;
+        }
 
         bool keyboardStart =
             Keyboard.current != null &&
@@ -74,6 +86,7 @@ public class TitleSceneController : MonoBehaviour
     // Play transition, then load next scene / “]ê‰‰o‚ÌŒã‚ÉŸ‚ÌƒV[ƒ“‚ÖˆÚ“®
     private IEnumerator PlayTransitionAndLoad()
     {
+        if (transitionAudio != null && transitionAudio.clip != null) transitionAudio.Play();
         if (transitionTrain != null)
         {
             transitionTrain.gameObject.SetActive(true);
@@ -98,6 +111,7 @@ public class TitleSceneController : MonoBehaviour
             transitionTrain.anchoredPosition = endPos;
         }
 
-        SceneManager.LoadScene(nextSceneName);
+        if (tutorialVideo != null) tutorialVideo.Begin(nextSceneName);
+        else SceneManager.LoadScene(nextSceneName);
     }
 }

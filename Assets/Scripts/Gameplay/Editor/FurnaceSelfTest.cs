@@ -71,15 +71,12 @@ namespace CompanyF.Gameplay.EditorTools
                 Run(11);
                 Check($"open after 0.3 s: {furnace.State}", furnace.State == DoorState.Open);
 
-                // Successful throw closes automatically; P1 can reopen after it closes.
+                // Successful throw leaves the door open until P1 closes it.
                 Run(49, coal: true);
                 Check($"0.49 s into a throw: {furnace.State}, {furnace.Action}, still {boiler.Temperature}", furnace.State == DoorState.Loading && furnace.Action == ShovelAction.Throw && Mathf.Approximately(boiler.Temperature, 50f));
                 Run(2);
-                Check($"coal lands at 0.5 s: {boiler.Temperature} (expect 150), door {furnace.State}, action {furnace.Action}", Mathf.Approximately(boiler.Temperature, 150f) && furnace.State == DoorState.Closing && furnace.Action == ShovelAction.None && coals == 1);
-                Run(31, door: true);
-                Check($"automatic close finishes; F during closing ignored: {furnace.State}", furnace.State == DoorState.Closed);
-                Open();
-                Check($"P1 reopens after automatic closure: {furnace.State}", furnace.State == DoorState.Open);
+                Check($"coal lands at 0.5 s: {boiler.Temperature} (expect 150), door {furnace.State}, action {furnace.Action}", Mathf.Approximately(boiler.Temperature, 150f) && furnace.State == DoorState.Open && furnace.Action == ShovelAction.None && coals == 1);
+
 
                 // Enter during a throw is ignored, not a failure; repeat throws work.
                 fails = 0;
@@ -87,16 +84,11 @@ namespace CompanyF.Gameplay.EditorTools
                 Run(20, coal: true);
                 Check($"Enter during a throw ignored: fails {fails}, action time {furnace.ActionTime:0.00} not restarted", fails == 0 && furnace.Action == ShovelAction.Throw && furnace.ActionTime > 0.35f);
                 Run(12);
-                Check($"second coal: {boiler.Temperature} (expect 250), {furnace.State}", Mathf.Approximately(boiler.Temperature, 250f) && furnace.State == DoorState.Closing);
-                Run(31);
-                Open();
+                Check($"second coal: {boiler.Temperature} (expect 250), {furnace.State}", Mathf.Approximately(boiler.Temperature, 250f) && furnace.State == DoorState.Open);
                 Run(51, coal: true);
                 Check($"third coal: {boiler.Temperature} (expect 350), no cooling ({cools})", Mathf.Approximately(boiler.Temperature, 350f) && cools == 0);
 
-                // Automatic closure prevents cooling; reopening starts a fresh timer.
-                Run(331);
-                Check("closed after coal: no cooling", furnace.State == DoorState.Closed && cools == 0 && Mathf.Approximately(boiler.Temperature, 350f));
-                Open();
+                // Open door cooling starts after the landing.
                 Run(110);
                 Check($"1.11 s after landing: no cooling ({cools}x)", cools == 0 && Mathf.Approximately(boiler.Temperature, 350f));
                 Run(10);
@@ -118,10 +110,6 @@ namespace CompanyF.Gameplay.EditorTools
                 Check($"landing before the first cooling: {boiler.Temperature} (expect 450), {cools}x", Mathf.Approximately(boiler.Temperature, 450f) && cools == 0);
                 Run(110);
                 Check($"1.1 s after that landing: no cooling ({cools}x)", cools == 0);
-                Check("door closed after landing", furnace.State == DoorState.Closed);
-                Open();
-                Run(110);
-                Check("reopening starts a fresh cooling wait", cools == 0);
                 Run(10);
                 Check($"1.2 s after that landing: cooled ({cools}x, {boiler.Temperature}, expect 350)", cools == 1 && Mathf.Approximately(boiler.Temperature, 350f));
 

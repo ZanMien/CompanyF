@@ -14,6 +14,8 @@ namespace CompanyF.UI
         [SerializeField] CanvasGroup rails;
         [SerializeField] UnityEngine.UI.Outline border;
         [SerializeField] UnityEngine.UI.Shadow bevel;
+        [SerializeField] UnityEngine.UI.Image departureArtwork;
+        [SerializeField] UnityEngine.UI.Image goArtwork;
 
         public string DisplayedText => text != null ? text.text : "";
 
@@ -68,6 +70,29 @@ namespace CompanyF.UI
                     SetStyle(true);
                     break;
                 default: text.text = ""; break;
+            }
+            if (departureArtwork != null)
+            {
+                bool show = flow.Phase == GamePhase.Ready;
+                departureArtwork.enabled = show;
+                if (show)
+                {
+                    departureArtwork.color = new Color(1f, 1f, 1f, textGroup.alpha);
+                    departureArtwork.rectTransform.localScale = rect.localScale;
+                    textGroup.alpha = levers.alpha = 0f;
+                }
+            }
+            if (goArtwork != null)
+            {
+                bool show = flow.ShowsGoMessage;
+                goArtwork.enabled = show;
+                if (show)
+                {
+                    goArtwork.color = new Color(1f, 1f, 1f, textGroup.alpha);
+                    goArtwork.rectTransform.anchoredPosition = rect.anchoredPosition;
+                    goArtwork.rectTransform.localScale = rect.localScale;
+                    textGroup.alpha = rails.alpha = 0f;
+                }
             }
         }
 

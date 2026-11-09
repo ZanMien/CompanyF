@@ -69,6 +69,16 @@ namespace CompanyF.UI.EditorTools
                 }
                 else if (stage == 1)
                 {
+                    var animalCount = 0;
+                    foreach (var image in UnityEngine.Object.FindObjectsByType<UnityEngine.UI.Image>(FindObjectsSortMode.None))
+                    {
+                        if (image.name != "AnimalMarker") continue;
+                        Check(image.sprite != null && image.enabled, "animal marker has visible artwork");
+                        Check(image.rectTransform.anchorMin.x > 0f, "animal position is available before departure");
+                        animalCount++;
+                    }
+                    var herd = UnityEngine.Object.FindFirstObjectByType<AnimalHerd>();
+                    Check(herd != null && animalCount == herd.Animals.Count && animalCount > 0, "all animals appear on progress bar");
                     Capture("countdown-ready.png");
                     Pose(GamePhase.Running, 0.4f);
                     Check(presentation.DisplayedText == "進行!!", "go text");

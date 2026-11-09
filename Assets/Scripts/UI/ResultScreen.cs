@@ -12,7 +12,7 @@ namespace CompanyF.UI
     /// The result screen, shown in the game scene itself. When the round ends (after <see cref="switchDelay"/>, 0 by
     /// default), the train and every other UI are hidden, the background switches to <see cref="resultCamera"/>,
     /// and the signboard shows the result, the clear time and the ranking.
-    /// After <see cref="inputLockTime"/>, the restart key loads the game scene again.
+    /// After <see cref="inputLockTime"/>, the restart key returns to the title scene.
     /// </summary>
     public class ResultScreen : MonoBehaviour
     {
@@ -32,8 +32,8 @@ namespace CompanyF.UI
         public Color highlightColor = new Color32(255, 225, 60, 255);
 
         [Header("Restart")]
-        public Key restartKey = Key.Space;
-        public string restartScene = "SampleScene";
+        public Key restartKey = Key.Enter;
+        public string restartScene = "TitleScene";
 
         [Header("Result text")]
         public Color clearColor = new Color32(0xf9, 0x63, 0x63, 255);

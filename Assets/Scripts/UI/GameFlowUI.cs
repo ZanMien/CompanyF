@@ -23,6 +23,8 @@ namespace CompanyF.UI
         [Header("Animal markers on the progress line")]
         public Color animalMarkerColor = new Color(0.45f, 0.25f, 0.1f);
         [Min(0f)] public float animalMarkerSize = 18f;
+        [SerializeField] Sprite cowMarkerSprite;
+        [SerializeField] Sprite horseMarkerSprite;
 
         readonly List<Image> animalMarkers = new List<Image>();
         int timerBaseSize;
@@ -81,10 +83,16 @@ namespace CompanyF.UI
                     var rect = marker.rectTransform;
                     rect.anchorMin = new Vector2(progress, rect.anchorMin.y);
                     rect.anchorMax = new Vector2(progress, rect.anchorMax.y);
-                    rect.sizeDelta = new Vector2(animalMarkerSize, animalMarkerSize);
-                    marker.color = animalMarkerColor;
+                    var sprite = animal.transform.CompareTag("Cow") ? cowMarkerSprite : horseMarkerSprite;
+                    rect.sizeDelta = sprite != null
+                        ? new Vector2(animalMarkerSize * sprite.rect.width / sprite.rect.height, animalMarkerSize)
+                        : new Vector2(animalMarkerSize, animalMarkerSize);
+                    rect.pivot = sprite != null ? new Vector2(0.5f, 0f) : new Vector2(0.5f, 0.5f);
+                    if (sprite != null) { marker.sprite = sprite; marker.preserveAspect = true; }
+                    marker.color = sprite != null ? Color.white : animalMarkerColor;
+                    rect.anchoredPosition = sprite != null ? new Vector2(0f, 25f) : Vector2.zero;
                     var label = marker.GetComponentInChildren<UnityEngine.UI.Text>();
-                    if (label != null) label.text = animal.transform.CompareTag("Cow") ? "牛" : "馬";
+                    if (label != null) { label.text = animal.transform.CompareTag("Cow") ? "牛" : "馬"; label.enabled = sprite == null; }
                     marker.gameObject.SetActive(true);
                 }
             }
