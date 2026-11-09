@@ -58,13 +58,21 @@ namespace CompanyF.Train
         public bool Arrived { get; private set; }
         /// <summary>Stopped early by <see cref="Halt"/> (e.g. game over).</summary>
         public bool Halted { get; private set; }
-        /// <summary>Not moving any more: reached the end or halted.</summary>
-        public bool Stopped => Arrived || Halted;
+        /// <summary>Waiting at the start for <see cref="Depart"/>.</summary>
+        public bool Holding { get; private set; }
+        /// <summary>Not moving: waiting to depart, reached the end or halted.</summary>
+        public bool Stopped => Holding || Arrived || Halted;
         /// <summary>Ran off a line that ends in a chasm.</summary>
         public bool Falling { get; private set; }
 
         /// <summary>Stops the train where it is; it will not move again.</summary>
         public void Halt() => Halted = true;
+
+        /// <summary>Keeps the train waiting at the start until <see cref="Depart"/>.</summary>
+        public void Hold() => Holding = true;
+
+        /// <summary>Lets a train waiting at the start go.</summary>
+        public void Depart() => Holding = false;
 
         /// <summary>Stops the train and raises <see cref="Crashed"/>. Does nothing once it has stopped.</summary>
         public void Crash()

@@ -14,6 +14,7 @@ namespace CompanyF.UI.EditorTools
     {
         const string HudName = "HUDCanvas";
         const string ResultName = "ResultCanvas";
+        const string CountdownName = "CountdownCanvas";
         const string ClearImagePath = "Assets/Image/ResultImage_1019.png";
 
         static Font font;
@@ -46,7 +47,17 @@ namespace CompanyF.UI.EditorTools
 
             BuildHud();
             BuildResults();
+            BuildCountdown();
             EditorSceneManager.MarkSceneDirty(train.scene);
+        }
+
+        /// <summary>Adds only the opening countdown, leaving the tuned gameplay values alone.</summary>
+        [MenuItem("Tools/Game/Setup Start Countdown")]
+        public static void SetupCountdown()
+        {
+            font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            BuildCountdown();
+            EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
         }
 
         static void BuildHud()
@@ -163,6 +174,25 @@ namespace CompanyF.UI.EditorTools
             var so = new SerializedObject(ui);
             so.FindProperty("clearPanel").objectReferenceValue = clear.gameObject;
             so.FindProperty("gameOverPanel").objectReferenceValue = over.gameObject;
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        static void BuildCountdown()
+        {
+            var old = GameObject.Find(CountdownName);
+            if (old != null) Undo.DestroyObjectImmediate(old);
+
+            var canvas = NewCanvas(CountdownName, 15);
+            var veil = Stretch(NewImage(canvas, "Veil", null, new Color(0f, 0f, 0f, 0.35f)), 0f);
+            var label = NewText(canvas, "CountdownText", "3", 320, TextAnchor.MiddleCenter, Color.white);
+            label.fontStyle = FontStyle.Bold;
+            label.GetComponent<Outline>().effectDistance = new Vector2(6f, -6f);
+            Place(label.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1200f, 480f));
+
+            var countdown = canvas.gameObject.AddComponent<StartCountdown>();
+            var so = new SerializedObject(countdown);
+            so.FindProperty("label").objectReferenceValue = label;
+            so.FindProperty("veil").objectReferenceValue = veil.GetComponent<Image>();
             so.ApplyModifiedPropertiesWithoutUndo();
         }
 
