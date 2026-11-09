@@ -84,9 +84,9 @@ namespace CompanyF.Gameplay.EditorTools
                         break;
                     case 3:
                         Check(fire.isPlaying, "coal apex event plays flare audio");
-                        furnace.Tick(furnace.loadTime, false, false);
                         effects.Stop();
-                        furnace.Tick(0f, true, false);
+                        furnace.Tick(furnace.loadTime, false, false);
+                        Check(furnace.State == DoorState.Closing, "coal landing closes the door automatically");
                         break;
                     case 4:
                         Check(effects.isPlaying, "door closing event plays audio");

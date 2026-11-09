@@ -23,7 +23,7 @@ namespace CompanyF.Gameplay
         [Min(0.01f)] public float emitInterval = 0.5f;
         [Tooltip("Seconds for a wave to grow to its full radius.")]
         [Min(0.01f)] public float expandTime = 1f;
-        [Min(0f)] public float maxRadius = 15f;
+        [Min(0f)] public float maxRadius = 30f;
 
         [Header("Look")]
         [Tooltip("Transparent unlit material; its HDR colour gives the glow.")]

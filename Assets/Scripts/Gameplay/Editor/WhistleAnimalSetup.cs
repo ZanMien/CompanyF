@@ -155,7 +155,7 @@ namespace CompanyF.Gameplay.EditorTools
             var root = new GameObject("_WhistleTest") { hideFlags = HideFlags.HideAndDontSave };
             try
             {
-                // Waves: first at once, then every 0.5 s; each grows 0 to 15 m in 1 s and disappears.
+                // Waves: first at once, then every 0.5 s; each grows 0 to 30 m in 1 s and disappears.
                 var waves = root.AddComponent<WhistleWaves>();
                 float Largest() { float m = 0f; foreach (var r in waves.ActiveRadii) m = Mathf.Max(m, r); return m; }
 
@@ -164,13 +164,13 @@ namespace CompanyF.Gameplay.EditorTools
                 waves.Tick(Dt, true);
                 Check($"first wave at once ({waves.ActiveRadii.Count})", waves.ActiveRadii.Count == 1);
                 for (int i = 0; i < 48; i++) waves.Tick(Dt, true);
-                Check($"0.48 s: still one wave ({waves.ActiveRadii.Count}), radius {Largest():0.0} (expect 7.2)", waves.ActiveRadii.Count == 1 && Mathf.Abs(Largest() - 7.2f) < 0.05f);
+                Check($"0.48 s: still one wave ({waves.ActiveRadii.Count}), radius {Largest():0.0} (expect 14.4)", waves.ActiveRadii.Count == 1 && Mathf.Abs(Largest() - 14.4f) < 0.05f);
                 for (int i = 0; i < 3; i++) waves.Tick(Dt, true);
                 Check($"0.51 s: second wave ({waves.ActiveRadii.Count})", waves.ActiveRadii.Count == 2);
                 for (int i = 0; i < 48; i++) waves.Tick(Dt, true);
-                Check($"0.99 s: largest wave about to finish, {Largest():0.0} m", Largest() > 14.5f && Largest() <= 15f);
+                Check($"0.99 s: largest wave about to finish, {Largest():0.0} m", Largest() > 29f && Largest() <= 30f);
                 for (int i = 0; i < 3; i++) waves.Tick(Dt, true);
-                Check($"1.02 s: first wave gone, new one out, {waves.ActiveRadii.Count} waves, largest {Largest():0.0} m", waves.ActiveRadii.Count == 2 && Largest() < 8f);
+                Check($"1.02 s: first wave gone, new one out, {waves.ActiveRadii.Count} waves, largest {Largest():0.0} m", waves.ActiveRadii.Count == 2 && Largest() < 16f);
                 for (int i = 0; i < 110; i++) waves.Tick(Dt, false);
                 Check($"key released: no new waves, all gone ({waves.ActiveRadii.Count})", waves.ActiveRadii.Count == 0);
                 waves.Tick(Dt, true);

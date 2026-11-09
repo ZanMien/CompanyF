@@ -30,8 +30,8 @@ namespace CompanyF.Gameplay
         [SerializeField] Behaviour[] startsWithRound;
 
         [Header("Opening messages (s)")]
-        [Min(0f)] public float readyTime = 1.5f;
-        [Min(0f)] public float goTime = 0.5f;
+        [Min(0f)] public float readyTime = 1f;
+        [Min(0f)] public float goTime = 1.2f;
 
         [Header("Time limit")]
         [Min(0f)] public float timeLimit = 60f;
@@ -40,7 +40,7 @@ namespace CompanyF.Gameplay
         [Min(0f)] public float emphasisScale = 2f;
 
         [Header("Time up")]
-        [Min(0f)] public float finishMessageTime = 1.5f;
+        [Min(0f)] public float finishMessageTime = 1f;
 
         /// <summary>The round is lost by running out of time or hitting an animal (overheating has its own event).</summary>
         public event Action GameOver;
@@ -52,6 +52,9 @@ namespace CompanyF.Gameplay
         public int SecondsShown => Mathf.Max(0, Mathf.CeilToInt(TimeLeft - 1e-4f));
         public bool Emphasised => Phase == GamePhase.Running && SecondsShown <= emphasisSeconds;
         public bool ShowsGoMessage => Phase == GamePhase.Running && goLeft > 0f;
+        public float ReadyElapsed => phaseTime;
+        public float GoElapsed => goTime - goLeft;
+        public float FinishElapsed => phaseTime;
 
         float phaseTime;
         float goLeft;

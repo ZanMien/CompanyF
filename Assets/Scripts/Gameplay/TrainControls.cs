@@ -33,7 +33,7 @@ namespace CompanyF.Gameplay
         [Tooltip("Longest a single blast can last (s), even with the key still held.")]
         [Min(0.01f)] public float whistleMaxTime = 1f;
         [Tooltip("Seconds after each blast before the whistle can be used again.")]
-        [Min(0f)] public float whistleCooldown = 5f;
+        [Min(0f)] public float whistleCooldown = 3f;
 
         public bool IsBraking { get; private set; }
         public bool IsCooling { get; private set; }

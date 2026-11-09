@@ -172,17 +172,17 @@ namespace CompanyF.Gameplay.EditorTools
 
                 gated.enabled = false;
                 Check($"starts on the ready message ({flow.Phase})", flow.Phase == GamePhase.Ready);
-                Run(149);
-                Check($"1.49 s: still ready, gameplay off ({flow.Phase}, {gated.enabled})", flow.Phase == GamePhase.Ready && !gated.enabled);
+                Run(99);
+                Check($"0.99 s: still ready, gameplay off ({flow.Phase}, {gated.enabled})", flow.Phase == GamePhase.Ready && !gated.enabled);
                 Run(1);
-                Check($"1.5 s: running, gameplay on, go message, {flow.SecondsShown} s", flow.Phase == GamePhase.Running && gated.enabled && flow.ShowsGoMessage && flow.SecondsShown == 60);
-                Run(49);
-                Check("go message still up at 0.49 s", flow.ShowsGoMessage);
+                Check($"1 s: running, gameplay on, go message, {flow.SecondsShown} s", flow.Phase == GamePhase.Running && gated.enabled && flow.ShowsGoMessage && flow.SecondsShown == 60);
+                Run(119);
+                Check("go message still up at 1.19 s", flow.ShowsGoMessage);
                 Run(2);
-                Check("go message gone after 0.5 s", !flow.ShowsGoMessage);
+                Check("go message gone after 1.2 s", !flow.ShowsGoMessage);
 
                 Run(100);
-                Check($"about 1.5 s in: shows {flow.SecondsShown} (expect 59)", flow.SecondsShown == 59);
+                Check($"about 2.2 s in: shows {flow.SecondsShown} (expect 58)", flow.SecondsShown == 58);
                 while (flow.SecondsShown > 6) flow.Tick(Dt);
                 Check($"6 left: not enlarged ({flow.Emphasised})", !flow.Emphasised);
                 while (flow.SecondsShown > 5) flow.Tick(Dt);
@@ -190,10 +190,10 @@ namespace CompanyF.Gameplay.EditorTools
 
                 while (flow.Phase == GamePhase.Running) flow.Tick(Dt);
                 Check($"0 left: finish message ({flow.Phase}), {flow.SecondsShown} s, no game over yet ({overs})", flow.Phase == GamePhase.Finishing && flow.SecondsShown == 0 && overs == 0);
-                Run(149);
-                Check($"1.49 s later: still finish message, game over {overs}", flow.Phase == GamePhase.Finishing && overs == 0);
+                Run(99);
+                Check($"0.99 s later: still finish message, game over {overs}", flow.Phase == GamePhase.Finishing && overs == 0);
                 Run(2);
-                Check($"after 1.5 s: game over once ({overs}), {flow.Phase}", flow.Phase == GamePhase.Ended && overs == 1);
+                Check($"after 1 s: game over once ({overs}), {flow.Phase}", flow.Phase == GamePhase.Ended && overs == 1);
 
                 // Touching an animal.
                 var herd = root.AddComponent<AnimalHerd>();
@@ -246,9 +246,9 @@ namespace CompanyF.Gameplay.EditorTools
                 Whistle(98, true);
                 Check($"0.98 s held: still sounding, 2 rings ({controls.Whistle}, {rings})", controls.IsWhistling && rings == 2);
                 Whistle(2, true);
-                Check($"1 s held: stops by itself, cooldown about 5 s ({controls.Whistle}, {controls.WhistleCooldownLeft})", controls.Whistle == TrainControls.WhistleState.Cooldown && controls.WhistleCooldownLeft > 4.98f);
-                Whistle(400, true);
-                Check($"key still held at 4 s of cooldown: cooling ({controls.Whistle}), never more than 2 rings ({rings})", controls.Whistle == TrainControls.WhistleState.Cooldown && rings == 2);
+                Check($"1 s held: stops by itself, cooldown about 3 s ({controls.Whistle}, {controls.WhistleCooldownLeft})", controls.Whistle == TrainControls.WhistleState.Cooldown && controls.WhistleCooldownLeft > 2.98f);
+                Whistle(200, true);
+                Check($"key still held at 2 s of cooldown: cooling ({controls.Whistle}), never more than 2 rings ({rings})", controls.Whistle == TrainControls.WhistleState.Cooldown && rings == 2);
                 Whistle(102, true);
                 Check($"cooldown over, key still held: no blast ({controls.Whistle})", controls.Whistle == TrainControls.WhistleState.Ready);
                 Whistle(50, true);
@@ -258,11 +258,11 @@ namespace CompanyF.Gameplay.EditorTools
                 Check($"release and press again: sounds ({controls.Whistle})", controls.IsWhistling);
                 Whistle(30, true);
                 Whistle(1, false);
-                Check($"released early: cooldown 5 s ({controls.Whistle}, {controls.WhistleCooldownLeft})", controls.Whistle == TrainControls.WhistleState.Cooldown && Mathf.Approximately(controls.WhistleCooldownLeft, 5f));
+                Check($"released early: cooldown 3 s ({controls.Whistle}, {controls.WhistleCooldownLeft})", controls.Whistle == TrainControls.WhistleState.Cooldown && Mathf.Approximately(controls.WhistleCooldownLeft, 3f));
                 Whistle(100, false);
                 Whistle(10, true);
                 Whistle(10, false);
-                Check($"press during cooldown: nothing ({controls.Whistle}, {controls.WhistleCooldownLeft:F2} left)", controls.Whistle == TrainControls.WhistleState.Cooldown && Mathf.Abs(controls.WhistleCooldownLeft - 3.8f) < 0.02f);
+                Check($"press during cooldown: nothing ({controls.Whistle}, {controls.WhistleCooldownLeft:F2} left)", controls.Whistle == TrainControls.WhistleState.Cooldown && Mathf.Abs(controls.WhistleCooldownLeft - 1.8f) < 0.02f);
                 Whistle(400, true);
                 Check($"pressed during cooldown and held past its end: no blast ({controls.Whistle})", controls.Whistle == TrainControls.WhistleState.Ready);
             }

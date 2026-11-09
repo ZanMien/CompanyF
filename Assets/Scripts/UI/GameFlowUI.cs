@@ -26,6 +26,7 @@ namespace CompanyF.UI
 
         readonly List<Image> animalMarkers = new List<Image>();
         int timerBaseSize;
+        CountdownPresentation countdown;
 
         void Awake()
         {
@@ -34,6 +35,7 @@ namespace CompanyF.UI
 
         void Start()
         {
+            countdown = GetComponent<CountdownPresentation>();
             if (flow == null) flow = FindFirstObjectByType<GameFlow>();
             if (train == null) train = FindFirstObjectByType<TrainFollower>();
             if (herd == null) herd = FindFirstObjectByType<AnimalHerd>();
@@ -49,7 +51,7 @@ namespace CompanyF.UI
             if (timerText != null)
             {
                 Set(timerText, flow.SecondsShown.ToString());
-                timerText.fontSize = flow.Emphasised ? Mathf.RoundToInt(timerBaseSize * flow.emphasisScale) : timerBaseSize;
+                timerText.fontSize = countdown == null && flow.Emphasised ? Mathf.RoundToInt(timerBaseSize * flow.emphasisScale) : timerBaseSize;
             }
 
             if (progressMarker != null && train != null)
@@ -63,7 +65,7 @@ namespace CompanyF.UI
             if (whistleText != null && controls != null) Set(whistleText, WhistleLabel());
         }
 
-        /// <summary>One marker for each animal charging right now.</summary>
+        /// <summary>Keep all registered animals visible, including waiting, fleeing and passed animals.</summary>
         void UpdateAnimalMarkers()
         {
             int shown = 0;
@@ -71,7 +73,7 @@ namespace CompanyF.UI
             {
                 foreach (var animal in herd.Animals)
                 {
-                    if (animal.state != AnimalHerd.AnimalState.Charging) continue;
+                    if (animal.transform == null) continue;
                     if (shown == animalMarkers.Count) animalMarkers.Add(NewAnimalMarker());
 
                     var marker = animalMarkers[shown++];
@@ -81,6 +83,8 @@ namespace CompanyF.UI
                     rect.anchorMax = new Vector2(progress, rect.anchorMax.y);
                     rect.sizeDelta = new Vector2(animalMarkerSize, animalMarkerSize);
                     marker.color = animalMarkerColor;
+                    var label = marker.GetComponentInChildren<UnityEngine.UI.Text>();
+                    if (label != null) label.text = animal.transform.CompareTag("Cow") ? "牛" : "馬";
                     marker.gameObject.SetActive(true);
                 }
             }
@@ -102,6 +106,22 @@ namespace CompanyF.UI
             var image = go.GetComponent<Image>();
             image.sprite = progressMarker.GetComponent<Image>().sprite;
             image.raycastTarget = false;
+            var labelObject = new GameObject("AnimalLabel", typeof(RectTransform), typeof(UnityEngine.UI.Text));
+            var labelRect = (RectTransform)labelObject.transform;
+            labelRect.SetParent(rect, false);
+            labelRect.anchorMin = labelRect.anchorMax = new Vector2(0.5f, 1f);
+            labelRect.pivot = new Vector2(0.5f, 0f);
+            labelRect.anchoredPosition = new Vector2(0f, 3f);
+            labelRect.sizeDelta = new Vector2(36f, 26f);
+            var label = labelObject.GetComponent<UnityEngine.UI.Text>();
+            label.font = timerText != null ? timerText.font : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            label.fontSize = 18;
+            label.alignment = TextAnchor.MiddleCenter;
+            label.color = Color.white;
+            label.raycastTarget = false;
+            var outline = labelObject.AddComponent<UnityEngine.UI.Outline>();
+            outline.effectColor = Color.black;
+            outline.effectDistance = new Vector2(1f, -1f);
             return image;
         }
 

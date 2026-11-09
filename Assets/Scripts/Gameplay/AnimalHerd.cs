@@ -69,15 +69,38 @@ namespace CompanyF.Gameplay
 
         public IReadOnlyList<Animal> Animals => animals;
 
+        void Awake()
+        {
+            foreach (var tag in animalTags)
+                foreach (var go in GameObject.FindGameObjectsWithTag(tag))
+                    Add(go.transform);
+        }
+
         void Start()
         {
             if (train == null) train = GetComponent<TrainFollower>();
             if (waves == null) waves = GetComponent<WhistleWaves>();
             if (cameraPeek == null) cameraPeek = GetComponent<CameraPeek>();
 
-            foreach (var tag in animalTags)
-                foreach (var go in GameObject.FindGameObjectsWithTag(tag))
-                    Add(go.transform);
+        }
+
+        /// <summary>Predicts the existing charge trigger without moving the animal or changing its timing.</summary>
+        public bool WillChargeWithin(Animal animal, float seconds)
+        {
+            if (train == null || train.Stopped || cameraPeek == null || !enabled) return false;
+            cameraPeek.GetPoint2ViewPlanes(viewPlanes);
+            if (!GeometryUtility.TestPlanesAABB(viewPlanes, animal.Bounds)) return false;
+            return EntersChargeRange(animal.transform.position, train.NosePosition,
+                train.transform.forward * train.speed, chargeDistance, seconds);
+        }
+
+        public static bool EntersChargeRange(Vector3 animal, Vector3 nose, Vector3 velocity, float distance, float seconds)
+        {
+            var offset = new Vector2(animal.x - nose.x, animal.z - nose.z);
+            var speed = new Vector2(velocity.x, velocity.z);
+            float time = speed.sqrMagnitude > 1e-6f
+                ? Mathf.Clamp(Vector2.Dot(offset, speed) / speed.sqrMagnitude, 0f, Mathf.Max(0f, seconds)) : 0f;
+            return (offset - speed * time).sqrMagnitude <= distance * distance;
         }
 
         public Animal Add(Transform animal)
