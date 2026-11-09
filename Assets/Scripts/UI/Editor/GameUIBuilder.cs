@@ -21,6 +21,10 @@ namespace CompanyF.UI.EditorTools
         const string CountdownName = "CountdownCanvas";
         const string ResultCameraName = "ResultCamera";
         const string TitleScenePath = "Assets/Scenes/Title.unity";
+        const string GameScenePath = "Assets/Scenes/SampleScene.unity";
+        const string TitleCanvasName = "TitleCanvas";
+        const string TitleTrainName = "Train";
+        static readonly string[] StageRoots = { "Terrain", "Track", "Global Volume", "Directional Light" };
         const string SoundFolder = "Assets/Sound/";
         const string CowCallPath = "Assets/Voice/牛の声 V.2.0.wav";
         const string HorseCallPath = "Assets/Voice/馬の声 V.2.0.wav";
@@ -204,6 +208,179 @@ namespace CompanyF.UI.EditorTools
             var clip = AssetDatabase.LoadAssetAtPath<AudioClip>($"{SoundFolder}{name}.wav");
             if (clip == null) Debug.LogError($"[Game] No sound '{name}' in {SoundFolder}");
             return clip;
+        }
+
+        /// <summary>Run with the Title scene open: copies the stage from the game scene and builds the title screen.</summary>
+        [MenuItem("Tools/Game/Setup Title Screen")]
+        public static void SetupTitleScreen()
+        {
+            var title = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+            if (title.path != TitleScenePath) { Debug.LogError($"[Game] Open {TitleScenePath} first."); return; }
+
+            font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            knob = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd");
+            CopyStage(title);
+            AimTitleCamera();
+
+            var old = GameObject.Find(TitleCanvasName);
+            if (old != null) Undo.DestroyObjectImmediate(old);
+            BuildTitleCanvas();
+
+            MoveSceneToFront(TitleScenePath);
+            EditorSceneManager.MarkSceneDirty(title);
+        }
+
+        /// <summary>Run with the Title scene open: adds a copy of the train with only its looks and the route loop.</summary>
+        [MenuItem("Tools/Game/Setup Title Train")]
+        public static void SetupTitleTrain()
+        {
+            var title = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+            if (title.path != TitleScenePath) { Debug.LogError($"[Game] Open {TitleScenePath} first."); return; }
+
+            var old = GameObject.Find(TitleTrainName);
+            if (old != null) Undo.DestroyObjectImmediate(old);
+
+            var game = EditorSceneManager.OpenScene(GameScenePath, OpenSceneMode.Additive);
+            var source = game.GetRootGameObjects().FirstOrDefault(root => root.name == TitleTrainName);
+            if (source == null)
+            {
+                EditorSceneManager.CloseScene(game, true);
+                Debug.LogError($"[Game] No '{TitleTrainName}' in {GameScenePath}.");
+                return;
+            }
+            var copy = Object.Instantiate(source);
+            copy.name = TitleTrainName;
+            Undo.RegisterCreatedObjectUndo(copy, "Setup Title Train");
+            EditorSceneManager.CloseScene(game, true);
+
+            foreach (var camera in copy.GetComponentsInChildren<Camera>(true))
+                Object.DestroyImmediate(camera.gameObject);
+            foreach (var script in copy.GetComponentsInChildren<MonoBehaviour>(true))
+                if (!(script is Train.TrainFollower))
+                    Object.DestroyImmediate(script);
+            foreach (var sound in copy.GetComponentsInChildren<AudioSource>(true))
+                Object.DestroyImmediate(sound);
+
+            copy.AddComponent<Train.TitleTrainLoop>();
+            EditorSceneManager.MarkSceneDirty(title);
+        }
+
+        static void CopyStage(UnityEngine.SceneManagement.Scene title)
+        {
+            foreach (var root in title.GetRootGameObjects())
+                if (System.Array.IndexOf(StageRoots, root.name) >= 0)
+                    Undo.DestroyObjectImmediate(root);
+
+            var game = EditorSceneManager.OpenScene(GameScenePath, OpenSceneMode.Additive);
+
+            // RenderSettings belong to the active scene, so read them while the game scene is active.
+            UnityEngine.SceneManagement.SceneManager.SetActiveScene(game);
+            var sky = RenderSettings.skybox;
+            var ambientMode = RenderSettings.ambientMode;
+            float ambientIntensity = RenderSettings.ambientIntensity;
+            var fog = (RenderSettings.fog, RenderSettings.fogMode, RenderSettings.fogColor, RenderSettings.fogDensity, RenderSettings.fogStartDistance, RenderSettings.fogEndDistance);
+            UnityEngine.SceneManagement.SceneManager.SetActiveScene(title);
+
+            Light sun = null;
+            foreach (var root in game.GetRootGameObjects())
+            {
+                if (System.Array.IndexOf(StageRoots, root.name) < 0) continue;
+                var copy = Object.Instantiate(root);
+                copy.name = root.name;
+                Undo.RegisterCreatedObjectUndo(copy, "Setup Title Screen");
+                if (copy.TryGetComponent<Light>(out var light)) sun = light;
+            }
+            EditorSceneManager.CloseScene(game, true);
+
+            RenderSettings.skybox = sky;
+            RenderSettings.ambientMode = ambientMode;
+            RenderSettings.ambientIntensity = ambientIntensity;
+            (RenderSettings.fog, RenderSettings.fogMode, RenderSettings.fogColor, RenderSettings.fogDensity, RenderSettings.fogStartDistance, RenderSettings.fogEndDistance) = fog;
+            RenderSettings.sun = sun;
+        }
+
+        static void AimTitleCamera()
+        {
+            var camera = Camera.main;
+            if (camera == null) { Debug.LogError("[Game] The Title scene has no Main Camera."); return; }
+
+            Undo.RecordObject(camera.transform, "Setup Title Screen");
+            Undo.RecordObject(camera, "Setup Title Screen");
+            var rotation = Quaternion.Euler(45f, 45f, 0f);
+            camera.transform.SetPositionAndRotation(ResultCameraTarget - rotation * Vector3.forward * ResultCameraDistance, rotation);
+            camera.farClipPlane = 3000f;
+            camera.GetUniversalAdditionalCameraData().renderPostProcessing = true;
+        }
+
+        /// <summary>Layout and colours follow the design sheet; set each Image's Source Image when the art is ready.</summary>
+        static void BuildTitleCanvas()
+        {
+            var canvas = NewCanvas(TitleCanvasName, 0);
+            var logo = NewRect(canvas, "Logo", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 90f), new Vector2(1500f, 700f));
+
+            // The puffs come first so they are drawn behind everything else in the logo.
+            var smokeColor = new Color32(0x72, 0x72, 0x72, 0xFF);
+            var puffs = new Image[10];
+            for (int i = 0; i < puffs.Length; i++)
+            {
+                var puff = NewImage(logo, $"Puff_{i}", knob, smokeColor);
+                Place(puff, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(170f, 170f));
+                puffs[i] = puff.GetComponent<Image>();
+            }
+
+            var locomotiveColor = new Color32(0x28, 0x28, 0x28, 0xFF);
+            var chimney = new Vector2(-440f, 60f);
+            Place(NewImage(logo, "Chimney", null, locomotiveColor), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0f), chimney, new Vector2(80f, 90f));
+            var body = NewImage(logo, "Locomotive", knob, locomotiveColor);
+            Place(body, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -70f), new Vector2(1320f, 330f));
+            var name = TitleText(body, "NameText", "シュッポッポ!!", 150, new Color32(0xF2, 0x88, 0x86, 0xFF));
+            Stretch(name.rectTransform, 0f);
+
+            var cloud = NewImage(logo, "Cloud", knob, smokeColor);
+            Place(cloud, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-440f, 180f), new Vector2(500f, 180f));
+            cloud.localEulerAngles = new Vector3(0f, 0f, 8f);
+            var futari = TitleText(cloud, "FutariText", "ふたりで", 100, new Color32(0xF6, 0xE8, 0x8C, 0xFF));
+            Stretch(futari.rectTransform, 0f);
+
+            var start = NewRect(canvas, "GameStart", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 40f), new Vector2(600f, 250f));
+            var group = start.gameObject.AddComponent<CanvasGroup>();
+            group.interactable = false;
+            group.blocksRaycasts = false;
+            foreach (float x in new[] { -130f, 130f })
+                Place(NewImage(start, "Pedal", knob, Color.black), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(x, 0f), new Vector2(190f, 250f));
+            var startText = NewText(start, "StartText", "ゲームスタート", 76, TextAnchor.MiddleCenter, new Color32(0xE5, 0xE5, 0xBC, 0xFF));
+            startText.fontStyle = FontStyle.Bold;
+            Object.DestroyImmediate(startText.GetComponent<Outline>());
+            var shadow = startText.gameObject.AddComponent<Shadow>();
+            shadow.effectColor = new Color(0f, 0f, 0f, 0.5f);
+            shadow.effectDistance = new Vector2(3.5f, -3.5f);
+            Stretch(startText.rectTransform, 0f);
+
+            var screen = canvas.gameObject.AddComponent<TitleScreen>();
+            screen.smokeStart = chimney + new Vector2(0f, 90f);
+            screen.smokeTop = 540f - 90f + 120f;
+            screen.sceneChange = Clip("シーン遷移");
+            var so = new SerializedObject(screen);
+            so.FindProperty("startLabel").objectReferenceValue = group;
+            var puffsProperty = so.FindProperty("puffs");
+            puffsProperty.arraySize = puffs.Length;
+            for (int i = 0; i < puffs.Length; i++)
+                puffsProperty.GetArrayElementAtIndex(i).objectReferenceValue = puffs[i];
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        static Text TitleText(Transform parent, string name, string text, int size, Color color)
+        {
+            var label = NewText(parent, name, text, size, TextAnchor.MiddleCenter, color);
+            label.fontStyle = FontStyle.Bold;
+            return label;
+        }
+
+        static void MoveSceneToFront(string path)
+        {
+            var scenes = EditorBuildSettings.scenes.Where(s => s.path != path).ToList();
+            scenes.Insert(0, new EditorBuildSettingsScene(path, true));
+            EditorBuildSettings.scenes = scenes.ToArray();
         }
 
         [MenuItem("Tools/Game/Clear Ranking")]

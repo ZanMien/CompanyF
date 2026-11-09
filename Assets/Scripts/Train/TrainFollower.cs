@@ -116,6 +116,18 @@ namespace CompanyF.Train
             Advance(0f);
         }
 
+        /// <summary>Forgets the run so far and puts the train back at the start of the route.</summary>
+        public void Restart()
+        {
+            segments.Clear();
+            segmentStart.Clear();
+            exitedPieces.Clear();
+            endOfLine = -1f;
+            Arrived = Halted = Falling = fellRaised = false;
+            fallClock = 0f;
+            Begin();
+        }
+
         void Update() => Tick(Time.deltaTime);
 
         /// <summary>Advances by <paramref name="dt"/> seconds.</summary>
