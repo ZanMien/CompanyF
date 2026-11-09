@@ -8,13 +8,13 @@ namespace CompanyF.UI.EditorTools
 {
     /// <summary>
     /// Sets up the furnace game in the open scene: gameplay components on the Train (boiler and controls are
-    /// re-added with default values), the HUD and the end screens (both replaced if they exist).
+    /// re-added with default values) and the HUD (replaced if it exists). The end of the round is shown by the
+    /// result screen prefab (see ResultScreenBuilder); the old CLEAR / GAMEOVER canvas is removed if still there.
     /// </summary>
     public static class GameUIBuilder
     {
         const string HudName = "HUDCanvas";
-        const string ResultName = "ResultCanvas";
-        const string ClearImagePath = "Assets/Image/ResultImage_1019.png";
+        const string OldResultName = "ResultCanvas";
 
         static Font font;
         static Sprite knob;
@@ -38,14 +38,13 @@ namespace CompanyF.UI.EditorTools
             audio.loop = true;
             controls.whistle = audio;
 
-            foreach (var oldName in new[] { HudName, ResultName })
+            foreach (var oldName in new[] { HudName, OldResultName })
             {
                 var old = GameObject.Find(oldName);
                 if (old != null) Undo.DestroyObjectImmediate(old);
             }
 
             BuildHud();
-            BuildResults();
             EditorSceneManager.MarkSceneDirty(train.scene);
         }
 
@@ -123,37 +122,6 @@ namespace CompanyF.UI.EditorTools
             so.FindProperty("minLabel").objectReferenceValue = minLabel;
             so.FindProperty("maxLabel").objectReferenceValue = maxLabel;
             so.FindProperty("flashText").objectReferenceValue = flash;
-            so.ApplyModifiedPropertiesWithoutUndo();
-        }
-
-        static void BuildResults()
-        {
-            var canvas = NewCanvas(ResultName, 20);
-
-            // CLEAR: the result picture, whole and at its own proportions; black fills any bars.
-            var clear = Stretch(NewImage(canvas, "ClearPanel", null, Color.black), 0f);
-            var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(ClearImagePath);
-            if (sprite == null) Debug.LogWarning($"[Game] No sprite at {ClearImagePath}; set its Texture Type to Sprite (2D and UI).");
-            var background = NewImage(clear, "Background", sprite, Color.white);
-            var fitter = background.gameObject.AddComponent<AspectRatioFitter>();
-            fitter.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
-            fitter.aspectRatio = sprite != null ? sprite.rect.width / sprite.rect.height : 16f / 9f;
-            var clearText = NewText(background, "ClearText", "CLEAR", 180, TextAnchor.MiddleCenter, new Color(1f, 0.95f, 0.84f));
-            clearText.fontStyle = FontStyle.Bold;
-            Stretch(clearText.rectTransform, 0f);
-            clear.gameObject.SetActive(false);
-
-            // GAMEOVER: grey-white veil over the stopped scene.
-            var over = Stretch(NewImage(canvas, "GameOverPanel", null, new Color(0.92f, 0.92f, 0.92f, 0.6f)), 0f);
-            var overText = NewText(over, "GameOverText", "GAMEOVER", 180, TextAnchor.MiddleCenter, new Color(0.75f, 0.08f, 0.05f));
-            overText.fontStyle = FontStyle.Bold;
-            Stretch(overText.rectTransform, 0f);
-            over.gameObject.SetActive(false);
-
-            var ui = canvas.gameObject.AddComponent<GameResultUI>();
-            var so = new SerializedObject(ui);
-            so.FindProperty("clearPanel").objectReferenceValue = clear.gameObject;
-            so.FindProperty("gameOverPanel").objectReferenceValue = over.gameObject;
             so.ApplyModifiedPropertiesWithoutUndo();
         }
 

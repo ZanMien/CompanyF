@@ -46,10 +46,6 @@ namespace CompanyF.Gameplay.EditorTools
 
             BuildUi(flow, train.GetComponent<TrainFollower>(), train.GetComponent<AnimalHerd>(), train.GetComponent<TrainControls>());
 
-            var result = new SerializedObject(Object.FindFirstObjectByType<GameResultUI>());
-            result.FindProperty("flow").objectReferenceValue = flow;
-            result.ApplyModifiedProperties();
-
             EditorSceneManager.MarkSceneDirty(train.scene);
             Debug.Log($"[GameFlow] setup done, colliders added to {added} animals");
         }
