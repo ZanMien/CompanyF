@@ -1,7 +1,9 @@
+using System.Linq;
 using CompanyF.Gameplay;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.UI;
 
 namespace CompanyF.UI.EditorTools
@@ -15,7 +17,13 @@ namespace CompanyF.UI.EditorTools
         const string HudName = "HUDCanvas";
         const string ResultName = "ResultCanvas";
         const string CountdownName = "CountdownCanvas";
-        const string ClearImagePath = "Assets/Image/ResultImage_1019.png";
+        const string ResultCameraName = "ResultCamera";
+        const string TitleScenePath = "Assets/Scenes/Title.unity";
+        const float ResultCameraDistance = 60f;
+        static readonly Vector3 ResultCameraTarget = new Vector3(0f, 0f, 900f);
+        static readonly Color WoodShadow = new Color32(0x89, 0x49, 0x14, 0xFF);
+        static readonly Color Paper = new Color(0.4f, 0.26f, 0.12f);
+        static readonly Color PaperText = new Color32(0xFB, 0xF7, 0xD3, 0xFF);
 
         static Font font;
         static Sprite knob;
@@ -146,35 +154,112 @@ namespace CompanyF.UI.EditorTools
             so.ApplyModifiedPropertiesWithoutUndo();
         }
 
+        /// <summary>Rebuilds only the result screen, leaving the tuned gameplay values alone.</summary>
+        [MenuItem("Tools/Game/Setup Result Screen")]
+        public static void SetupResultScreen()
+        {
+            font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            var old = GameObject.Find(ResultName);
+            if (old != null) Undo.DestroyObjectImmediate(old);
+            BuildResults();
+            EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
+        }
+
+        [MenuItem("Tools/Game/Clear Ranking")]
+        public static void ClearRanking() => ResultRanking.Clear();
+
+        /// <summary>Layout and colours follow the design sheet; set each Image's Source Image when the art is ready.</summary>
         static void BuildResults()
         {
             var canvas = NewCanvas(ResultName, 20);
+            var panel = Stretch(NewRect(canvas, "ResultPanel", Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero), 0f);
 
-            // CLEAR: the result picture, whole and at its own proportions; black fills any bars.
-            var clear = Stretch(NewImage(canvas, "ClearPanel", null, Color.black), 0f);
-            var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(ClearImagePath);
-            if (sprite == null) Debug.LogWarning($"[Game] No sprite at {ClearImagePath}; set its Texture Type to Sprite (2D and UI).");
-            var background = NewImage(clear, "Background", sprite, Color.white);
-            var fitter = background.gameObject.AddComponent<AspectRatioFitter>();
-            fitter.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
-            fitter.aspectRatio = sprite != null ? sprite.rect.width / sprite.rect.height : 16f / 9f;
-            var clearText = NewText(background, "ClearText", "CLEAR", 180, TextAnchor.MiddleCenter, new Color(1f, 0.95f, 0.84f));
-            clearText.fontStyle = FontStyle.Bold;
-            Stretch(clearText.rectTransform, 0f);
-            clear.gameObject.SetActive(false);
+            // Board, hanging from the top of the screen. Chains are its children so they move with it.
+            var board = NewImage(panel, "Board", null, new Color32(0xC8, 0x61, 0x0D, 0xFF));
+            Place(board, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -90f), new Vector2(1700f, 900f));
+            var shadow = board.gameObject.AddComponent<Shadow>();
+            shadow.effectColor = WoodShadow;
+            shadow.effectDistance = new Vector2(14f, -14f);
+            foreach (float x in new[] { -650f, 650f })
+                Place(NewImage(board, "Chain", null, new Color(0.15f, 0.12f, 0.1f)), new Vector2(0.5f, 1f), new Vector2(0.5f, 0f), new Vector2(x, 0f), new Vector2(14f, 200f));
+            for (int i = 1; i < 5; i++)
+                Place(NewImage(board, $"PlankLine_{i}", null, WoodShadow), new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2(0f, -180f * i), new Vector2(1700f, 6f));
 
-            // GAMEOVER: grey-white veil over the stopped scene.
-            var over = Stretch(NewImage(canvas, "GameOverPanel", null, new Color(0.92f, 0.92f, 0.92f, 0.6f)), 0f);
-            var overText = NewText(over, "GameOverText", "GAMEOVER", 180, TextAnchor.MiddleCenter, new Color(0.75f, 0.08f, 0.05f));
-            overText.fontStyle = FontStyle.Bold;
-            Stretch(overText.rectTransform, 0f);
-            over.gameObject.SetActive(false);
+            var title = Emboss(NewText(board, "TitleText", "ゲームクリア", 96, TextAnchor.MiddleCenter, Color.white));
+            Place(title.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -30f), new Vector2(700f, 300f));
+
+            var timePaper = NewImage(board, "TimePaper", null, Paper);
+            Place(timePaper, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(-467f, -360f), new Vector2(500f, 500f));
+            var timeLabel = Emboss(NewText(timePaper, "TimeLabel", "到着時間", 64, TextAnchor.MiddleCenter, PaperText));
+            Place(timeLabel.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -70f), new Vector2(460f, 90f));
+            var time = Emboss(NewText(timePaper, "TimeText", "00:00.00", 76, TextAnchor.MiddleCenter, PaperText));
+            Place(time.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -50f), new Vector2(460f, 120f));
+
+            var rankingPaper = NewImage(board, "RankingPaper", null, Paper);
+            Place(rankingPaper, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(316f, -360f), new Vector2(800f, 500f));
+            var rankingLabel = Emboss(NewText(rankingPaper, "RankingLabel", "ランキング", 60, TextAnchor.MiddleCenter, PaperText));
+            Place(rankingLabel.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -24f), new Vector2(760f, 80f));
+            var rows = new Text[ResultRanking.Size];
+            for (int i = 0; i < rows.Length; i++)
+            {
+                rows[i] = Emboss(NewText(rankingPaper, $"Row_{i + 1}", "", 54, TextAnchor.MiddleCenter, PaperText));
+                Place(rows[i].rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -116f - i * 72f), new Vector2(760f, 68f));
+            }
+
+            var prompt = NewText(panel, "LeavePrompt", "Enter：タイトルへ", 36, TextAnchor.MiddleCenter, Color.white);
+            Place(prompt.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 14f), new Vector2(600f, 50f));
 
             var ui = canvas.gameObject.AddComponent<GameResultUI>();
             var so = new SerializedObject(ui);
-            so.FindProperty("clearPanel").objectReferenceValue = clear.gameObject;
-            so.FindProperty("gameOverPanel").objectReferenceValue = over.gameObject;
+            so.FindProperty("panel").objectReferenceValue = panel.gameObject;
+            so.FindProperty("board").objectReferenceValue = board;
+            so.FindProperty("titleText").objectReferenceValue = title;
+            so.FindProperty("timeText").objectReferenceValue = time;
+            so.FindProperty("resultCamera").objectReferenceValue = BuildResultCamera();
+            var rowsProperty = so.FindProperty("rankingRows");
+            rowsProperty.arraySize = rows.Length;
+            for (int i = 0; i < rows.Length; i++)
+                rowsProperty.GetArrayElementAtIndex(i).objectReferenceValue = rows[i];
             so.ApplyModifiedPropertiesWithoutUndo();
+            panel.gameObject.SetActive(false);
+
+            AddSceneToBuild(TitleScenePath);
+        }
+
+        /// <summary>Looks at a point on the stage floor from 45° up and at an angle.</summary>
+        static Camera BuildResultCamera()
+        {
+            var old = GameObject.Find(ResultCameraName);
+            if (old != null) Undo.DestroyObjectImmediate(old);
+
+            var go = new GameObject(ResultCameraName, typeof(Camera));
+            Undo.RegisterCreatedObjectUndo(go, "Setup Result Screen");
+            var rotation = Quaternion.Euler(45f, 45f, 0f);
+            go.transform.SetPositionAndRotation(ResultCameraTarget - rotation * Vector3.forward * ResultCameraDistance, rotation);
+
+            var camera = go.GetComponent<Camera>();
+            camera.depth = 10f;
+            camera.farClipPlane = 3000f;
+            camera.enabled = false;
+            go.AddComponent<UniversalAdditionalCameraData>().renderPostProcessing = true;
+            return camera;
+        }
+
+        static void AddSceneToBuild(string path)
+        {
+            var scenes = EditorBuildSettings.scenes.ToList();
+            if (scenes.Any(s => s.path == path)) return;
+            scenes.Add(new EditorBuildSettingsScene(path, true));
+            EditorBuildSettings.scenes = scenes.ToArray();
+        }
+
+        static Text Emboss(Text label)
+        {
+            label.fontStyle = FontStyle.Bold;
+            var outline = label.GetComponent<Outline>();
+            outline.effectColor = new Color32(0xB6, 0xB1, 0x92, 0xFF);
+            outline.effectDistance = new Vector2(3f, -3f);
+            return label;
         }
 
         static void BuildCountdown()
