@@ -26,7 +26,14 @@ namespace CompanyF.Gameplay
         public AudioClip gameOver;
         public AudioClip sceneChange;
 
+        [Header("BGM")]
+        [Tooltip("Loops from the start of the game until the result appears.")]
+        public AudioClip mainBgm;
+        [Tooltip("Loops on the result screen, after the clear / game over sound.")]
+        public AudioClip resultBgm;
+
         [Header("Volume")]
+        [Range(0f, 1f)] public float bgmVolume = 0.6f;
         [Range(0f, 1f)] public float effectVolume = 1f;
         [Tooltip("Fire loop volume at the lowest boiler temperature.")]
         [Range(0f, 1f)] public float fireVolumeCold = 0.2f;
@@ -40,9 +47,15 @@ namespace CompanyF.Gameplay
         GameResultUI result;
         AudioSource effects;
         AudioSource fire;
+        AudioSource bgm;
 
         void Awake()
         {
+            bgm = gameObject.AddComponent<AudioSource>();
+            bgm.playOnAwake = false;
+            bgm.loop = true;
+            PlayBgm(mainBgm);
+
             effects = gameObject.AddComponent<AudioSource>();
             effects.playOnAwake = false;
             fire = gameObject.AddComponent<AudioSource>();
@@ -89,6 +102,7 @@ namespace CompanyF.Gameplay
 
         void Update()
         {
+            bgm.volume = bgmVolume;
             bool burning = train != null && !train.Stopped;
             if (burning && !fire.isPlaying && fire.clip != null) fire.Play();
             else if (!burning && fire.isPlaying) fire.Stop();
@@ -110,7 +124,22 @@ namespace CompanyF.Gameplay
 
         void OnCoalAdded(float heat) => Play(fireUp);
         void OnSwitched() => Play(lever);
-        void OnResultShown(bool cleared) => Play(cleared ? clear : gameOver);
+        void OnResultShown(bool cleared)
+        {
+            var jingle = cleared ? clear : gameOver;
+            bgm.Stop();
+            Play(jingle);
+            Invoke(nameof(PlayResultBgm), jingle != null ? jingle.length : 0f);
+        }
+
+        void PlayResultBgm() => PlayBgm(resultBgm);
+
+        void PlayBgm(AudioClip clip)
+        {
+            bgm.Stop();
+            bgm.clip = clip;
+            if (clip != null) bgm.Play();
+        }
 
         /// <summary>The scene is about to be replaced, so this sound plays on an object that outlives it.</summary>
         void OnLeaving()

@@ -174,16 +174,24 @@ namespace CompanyF.UI.EditorTools
             EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
         }
 
-        /// <summary>Adds the sound effects and gives the animals their calls, leaving everything else alone.</summary>
+        /// <summary>
+        /// Assigns the sound effects and BGM and gives the animals their calls, leaving everything else alone.
+        /// An existing GameAudio is kept, so its volume settings survive.
+        /// </summary>
         [MenuItem("Tools/Game/Setup Game Audio")]
         public static void SetupGameAudio()
         {
-            var old = Object.FindFirstObjectByType<GameAudio>();
-            if (old != null) Undo.DestroyObjectImmediate(old.gameObject);
-
-            var go = new GameObject("GameAudio");
-            Undo.RegisterCreatedObjectUndo(go, "Setup Game Audio");
-            var audio = go.AddComponent<GameAudio>();
+            var audio = Object.FindFirstObjectByType<GameAudio>();
+            if (audio == null)
+            {
+                var created = new GameObject("GameAudio");
+                Undo.RegisterCreatedObjectUndo(created, "Setup Game Audio");
+                audio = created.AddComponent<GameAudio>();
+            }
+            var go = audio.gameObject;
+            Undo.RecordObject(audio, "Setup Game Audio");
+            audio.mainBgm = StreamedClip("メインゲームBGM");
+            audio.resultBgm = StreamedClip("結果画面BGM");
             audio.doorOpen = Clip("でかい扉が開いた音");
             audio.doorClose = Clip("でかい扉が閉まった音");
             audio.shovel = Clip("土をシャベルですくって入れる音");
@@ -201,6 +209,20 @@ namespace CompanyF.UI.EditorTools
                 animal.call.clip = AssetDatabase.LoadAssetAtPath<AudioClip>(animal.name.StartsWith("Cow") ? CowCallPath : HorseCallPath);
             }
             EditorSceneManager.MarkSceneDirty(go.scene);
+        }
+
+        /// <summary>Long music: streamed from disk instead of decompressed into memory when the scene loads.</summary>
+        static AudioClip StreamedClip(string name)
+        {
+            var importer = AssetImporter.GetAtPath($"{SoundFolder}{name}.wav") as AudioImporter;
+            if (importer != null && importer.defaultSampleSettings.loadType != AudioClipLoadType.Streaming)
+            {
+                var settings = importer.defaultSampleSettings;
+                settings.loadType = AudioClipLoadType.Streaming;
+                importer.defaultSampleSettings = settings;
+                importer.SaveAndReimport();
+            }
+            return Clip(name);
         }
 
         static AudioClip Clip(string name)

@@ -8841,6 +8841,9 @@ MonoBehaviour:
   clear: {fileID: 8300000, guid: 014d9bf6b69c5714087c0b9ad76946e4, type: 3}
   gameOver: {fileID: 8300000, guid: 734c06e4d5d86d540963de272df9c688, type: 3}
   sceneChange: {fileID: 8300000, guid: 1ed0c52ea2bb3e942a292ceacde06923, type: 3}
+  mainBgm: {fileID: 8300000, guid: 72b9171be1cef244cb0498ea05b688ca, type: 3}
+  resultBgm: {fileID: 8300000, guid: 1e973790c2482f940b7b3e44c8ff73e5, type: 3}
+  bgmVolume: 0.6
   effectVolume: 1
   fireVolumeCold: 0.2
   fireVolumeHot: 0.8
